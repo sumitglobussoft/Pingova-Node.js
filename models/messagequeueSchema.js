@@ -2,7 +2,8 @@ console.log("Messagequeue schema has been connected");
 var mongoose = require('mongoose');
 var messagequeueSchema = new mongoose.Schema({
   type: Number,  //type 1 for msg and type 2 for message status
-to_send:Number,
+  to_send:Number,
+  send_by:Number,
   userId_to: Number
 , userId_from:Number
 , msg_type: String
