@@ -41,14 +41,14 @@ process.on('SIGINT', function () {
 });
 
 
-//	var pool      =    mysql.createPool({
-//     connectionLimit : 100, //important
-//     host     : '169.54.188.252',
-//     user     : 'pingova',
-//     password : 'pNUNsGV8KRhPpEfM',
-//     database : 'pingova',
-//     debug    :  false
-// });
+//var pool = mysql.createPool({
+//    connectionLimit: 100, //important
+//    host: '169.54.188.252',
+//    user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
+//    database: 'pingova',
+//    debug: false
+//});
 
 var pool = mysql.createPool({
     connectionLimit: 100, //important
@@ -168,7 +168,7 @@ io.sockets.on('connection', function (client) {
                         console.log("Socket not connected");
                         var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '"}';
                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
-                        if (io.sockets.socket(client.id) != undefined)
+                        if (io.sockets.socket(client.id) !== undefined)
                         {
                             console.log("**socket id is valid for sending message user**")
                             io.sockets.socket(client.id).emit("messagestatus", myarr);
@@ -284,6 +284,7 @@ io.sockets.on('connection', function (client) {
     });
     //get the delivered status
     client.on("receivedMessageStatus", function (msg) {
+        console.log("=====================+++++++++++++++++=========================");
 
         console.log("=====================receivedMessageStatus=========================" + msg);
         var jsonMsg = JSON.parse(msg);
@@ -308,7 +309,7 @@ io.sockets.on('connection', function (client) {
                     var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"' + jsonMsg.msg_status + '","userid_to":"' + jsonMsg.userto_id + '"}';
                     console.log("myarr::::::::" + myarr);
                     // io.sockets.socket(client.id).emit("messagestatus", myarr);
-                    if (jsonMsg.sentby_user_id === undefined) {
+                    if (jsonMsg.type === 1) {
                         if (io.sockets.sockets[socketid] !== undefined)
                         {
                             console.log("**socket id is valid for sending message user**");
@@ -328,7 +329,7 @@ io.sockets.on('connection', function (client) {
                                 if (err) {
                                     return err;
                                 } else {
-                                    console.log("New message  added in queue !");
+                                    console.log("New message status added in queue !");
                                 }
                             });
                         }
@@ -443,8 +444,7 @@ io.sockets.on('connection', function (client) {
             //	}
         });
     });
-    client.on("checkStatus", function (msg)
-    {
+    client.on("checkStatus", function (msg) {
         var jsonMsg1 = JSON.parse(msg);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.userId);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.sequence);
@@ -667,6 +667,33 @@ io.sockets.on('connection', function (client) {
                                                  }
                                                  });  notification*/
                                             }
+                                            else if (item.type === 5) { //leave group
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
+                                            else if (item.type === 6) {//remove members from group
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
+                                            else if (item.type === 7) {//add members to group
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
                                         }
                                         callback();
                                     }, function () {
@@ -779,6 +806,7 @@ io.sockets.on('connection', function (client) {
             } else {
                 if (doc.length > 0) {
                     doc[0].lastseen = lastseen;
+                    doc[0].isOnline = 0;
                     doc[0].save();
                 }
             }
@@ -852,16 +880,22 @@ io.sockets.on('connection', function (client) {
                 console.log("error in getting user details");
                 return err;
             } else {
-                var myarr = '{"online_status":"0"}';
+                var myarr = '{"online_status":"0","user_id":"' + user + '"}';
                 if (doc.length > 0) {
                     var socketid = doc[0].socketId;
                     if (io.sockets.sockets[socketid] !== undefined)
                     {
-                        myarr = '{"online_status":"1"}';
+                        if (doc[0].isOnline === 1) {
+                            myarr = '{"online_status":"1","user_id":"' + user + '"}';
+                        }
+                        else {
+                            myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
+                        }
+
                         io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
                     }
                     else {
-                        myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '"}';
+                        myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
                         io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
                     }
 
@@ -1411,7 +1445,7 @@ io.sockets.on('connection', function (client) {
                 } else {
                     console.log("groupinfo:::" + groupinfo);
                     if (groupinfo.length > 0) {
-                        var group_full_data = {}
+                        var group_full_data = {};
                         var group_full_info = [];
                         async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
                         {
@@ -1453,9 +1487,9 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
 
-                            
+
                         }, function () {
-                           
+
                             group_full_data.group_full_data = group_full_info;
                             console.log(group_full_data);
 //                            group_data.group_members = group_members;
@@ -1467,6 +1501,148 @@ io.sockets.on('connection', function (client) {
 
             });
         });
+    });
+
+    //leaving group event
+    client.on("leaveGroup", function (data) {
+        var jsonData = JSON.parse(data);
+        var groupId = jsonData.group_id;
+        var userId = jsonData.user_id;
+        var moderatorId;
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, admininfo) {
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    //deleting the record 
+                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + userId;
+                    console.log(strQuery);
+                    connection.query(strQuery, function (err, row) {
+                        if (err) {
+                            console.log(err);
+                            throw err;
+                        } else {
+                            var jsonData = {};
+                            jsonData.group_id = groupId;
+                            jsonData.user_id = userId;
+                            var jsonString = JSON.stringify(jsonData);
+                            io.sockets.socket(client.id).emit("leaveGroupNotification", jsonString);
+                            //querying DB to get full details of member of that group to notify them
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId;
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, groupinfo) {
+                                if (err) {
+                                    console.log(err);
+                                    throw err;
+                                } else {
+
+                                    console.log(groupinfo);
+                                    if (groupinfo.length > 0) {
+                                        console.log("moderatorIdmoderatorIdmoderatorId::::" + moderatorId);
+                                        console.log("admininfo.user_id::::" + admininfo[0].user_id);
+                                        console.log("userId::::" + userId);
+                                        if ("" + admininfo[0].user_id === userId) {
+                                            //changing the moderator as he is the 1 leaving the group
+                                            console.log("trueeeeeeeeeeeeee");
+                                            //randomly selecting a member for admin role
+                                            var item = groupinfo[Math.floor(Math.random() * groupinfo.length)];
+                                            moderatorId = item.user_id;
+                                            console.log("moderatorId:::::::::::" + moderatorId);
+                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId;
+                                            console.log(strQuery);
+                                            connection.query(strQuery, function (err, admininfo) {
+                                                if (err) {
+                                                    moderatorId = 1234;
+                                                    console.log(err);
+                                                    throw err;
+                                                } else {
+                                                }
+                                            });
+                                        }
+                                        else {
+                                            console.log("falseeeeeeeeeeeeee");
+                                            moderatorId = admininfo[0].user_id;
+                                        }
+                                        async.forEachSeries(groupinfo, function (eachmember, callback)
+                                        {
+                                            //to get socket id
+                                            UserSchema.find({
+                                                'userId': eachmember.user_id
+                                            }, function (err, doc) {
+                                                if (err)
+                                                {
+                                                    console.log("error in getting user details");
+                                                    return err;
+                                                } else {
+                                                    if (doc.length > 0) {
+                                                        var socketid = doc[0].socketId;
+                                                        console.log("socket id of opponent " + socketid);
+                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                        {//user connected to node server
+                                                            var jsonData = {};
+                                                            jsonData.group_id = groupId;
+                                                            jsonData.user_id = userId;
+                                                            jsonData.msg_data = '{"moderator_id":"' + moderatorId + '"}';
+                                                            var jsonString = JSON.stringify(jsonData);
+                                                            io.sockets.socket(socketid).emit("leaveGroupNotification", jsonString);
+                                                        } else//When user is not connected to node server
+                                                        {
+                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                type: 5,
+                                                                userId_to: eachmember.user_id,
+                                                                userId_from: groupId,
+                                                                send_by: userId,
+                                                                msg_data: '{"moderator_id":"' + moderatorId + '"}'
+                                                            });
+                                                            newqueuemessage.save(function (err) {
+                                                                if (err) {
+                                                                    return err;
+                                                                } else {
+                                                                    console.log("New message  added in queue !");
+                                                                }
+                                                            });
+
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                            callback();
+                                        }, function () {
+
+
+                                        });
+                                    } else {
+                                        //incase there are no members left in the group
+                                        //coding to delete group from user DB
+                                        var strQuery = "DELETE FROM users WHERE userid=" + groupId;
+                                        console.log(strQuery);
+                                        connection.query(strQuery, function (err, row) {
+                                            if (err) {
+                                                console.log(err);
+                                                throw err;
+                                            } else {
+                                                console.log("group deleted");
+                                            }
+                                        });
+                                    }
+                                }
+
+                            });
+                        }
+                    });
+                }
+            });
+        });
+
     });
 //group Join Request
     client.on("groupJoinRequest", function (msg) {
@@ -1500,7 +1676,7 @@ io.sockets.on('connection', function (client) {
                             messagedata = JSON.stringify(messagedata);
                         }
                         var newqueuemessage = new MessagequeueSchema({
-                            type: 5,
+                            type: 8,
                             userId_to: moderatorId,
                             msg_data: messagedata,
                             msg_serverid: 11,
@@ -1519,4 +1695,252 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
+    client.on("updateUserOnline", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var status = jsonMsg.status;
+        var user = jsonMsg.user_id;
+        var lastseen = Math.floor(Date.now() / 1000);
+
+        UserSchema.find({
+            'userId': user
+        }, function (err, doc) {
+            if (err) {
+                return err;
+            } else {
+                if (doc.length > 0) {
+                    doc[0].lastseen = lastseen;
+                    doc[0].isOnline = status;
+                    doc[0].save();
+                }
+            }
+        });
+    });
+
+    client.on("removeFromGroup", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+
+        var moderatorId = jsonMsg.moderator_id;
+        var user = jsonMsg.user_id;
+        var groupId = jsonMsg.group_id;
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, moderatorinfo) {
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    console.log(moderatorinfo);
+                    if (moderatorinfo.length > 0) {
+                        var jsonMessage = {};
+                        if ("" + moderatorinfo[0].user_id === moderatorId) {//the requested user is a moderator
+                            // perform the required task
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId;
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, groupinfo) {
+                                if (err) {
+                                    console.log(err);
+                                    throw err;
+                                } else {
+                                    //deleting the record 
+                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user;
+                                    console.log(strQuery);
+                                    connection.query(strQuery, function (err, row) {
+                                        if (err) {
+                                            console.log(err);
+                                            throw err;
+                                        } else {
+                                            //querying DB to get full details of member of that group to notify them
+
+
+                                            console.log(groupinfo);
+                                            if (groupinfo.length > 0) {
+
+                                                async.forEachSeries(groupinfo, function (eachmember, callback)
+                                                {
+                                                    //to get socket id
+                                                    UserSchema.find({
+                                                        'userId': eachmember.user_id
+                                                    }, function (err, doc) {
+                                                        if (err)
+                                                        {
+                                                            console.log("error in getting user details");
+                                                            return err;
+                                                        } else {
+                                                            if (doc.length > 0) {
+                                                                var socketid = doc[0].socketId;
+                                                                console.log("socket id of opponent " + socketid);
+                                                                if (io.sockets.sockets[socketid] !== undefined)
+                                                                {//user connected to node server
+                                                                    jsonMessage.moderator_id = moderatorId;
+                                                                    jsonMessage.group_id = groupId;
+                                                                    jsonMessage.user_id = user;
+                                                                    var jsonString = JSON.stringify(jsonMessage);
+                                                                    io.sockets.socket(socketid).emit("removeFromGroupNotification", jsonString);
+                                                                } else//When user is not connected to node server
+                                                                {
+                                                                    var newqueuemessage = new MessagequeueSchema({
+                                                                        type: 6,
+                                                                        userId_to: eachmember.user_id,
+                                                                        userId_from: groupId,
+                                                                        send_by: moderatorId,
+                                                                        msg_data: '{"removed_users_id":"' + user + '"}'
+                                                                    });
+                                                                    newqueuemessage.save(function (err) {
+                                                                        if (err) {
+                                                                            return err;
+                                                                        } else {
+                                                                            console.log("New message  added in queue !");
+                                                                        }
+                                                                    });
+
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    callback();
+                                                }, function () {
+
+
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        } else {
+                            jsonMessage.error = 101;
+                            jsonMessage.msg = "the requested user is not a moderator"
+                            var stringMessage = JSON.stringify(jsonMessage);
+                            io.sockets.socket(client.id).emit("removeFromGroupNotification", stringMessage);
+                        }
+                    }
+                    else {
+                        console.log("Moderator is not present in the group"); //this situation will never arise
+                    }
+                }
+            });
+        });
+    });
+
+    client.on("addMemberToGroup", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+
+        var moderatorId = jsonMsg.moderator_id;
+        var user = jsonMsg.user_id;
+        var groupId = jsonMsg.group_id;
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, moderatorinfo) {
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    console.log(moderatorinfo);
+                    if (moderatorinfo.length > 0) {
+                        var jsonMessage = {};
+                        if ("" + moderatorinfo[0].user_id === moderatorId) {//the requested user is a moderator
+                            // perform the required task
+                            //deleting the record 
+                            var strQuery = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=1";
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, row) {
+                                if (err) {
+                                    console.log(err);
+                                    throw err;
+                                } else {
+
+                                    //querying DB to get full details of member of that group to notify them
+                                    var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId;
+                                    console.log(strQuery);
+                                    connection.query(strQuery, function (err, groupinfo) {
+                                        if (err) {
+                                            console.log(err);
+                                            throw err;
+                                        } else {
+
+                                            console.log(groupinfo);
+                                            if (groupinfo.length > 0) {
+
+                                                async.forEachSeries(groupinfo, function (eachmember, callback)
+                                                {
+                                                    //to get socket id
+                                                    UserSchema.find({
+                                                        'userId': eachmember.user_id
+                                                    }, function (err, doc) {
+                                                        if (err)
+                                                        {
+                                                            console.log("error in getting user details");
+                                                            return err;
+                                                        } else {
+                                                            if (doc.length > 0) {
+                                                                var socketid = doc[0].socketId;
+                                                                console.log("socket id of opponent " + socketid);
+                                                                if (io.sockets.sockets[socketid] !== undefined)
+                                                                {//user connected to node server
+                                                                    jsonMessage.moderator_id = moderatorId;
+                                                                    jsonMessage.group_id = groupId;
+                                                                    jsonMessage.user_id = user;
+                                                                    var jsonString = JSON.stringify(jsonMessage);
+                                                                    io.sockets.socket(socketid).emit("addMemberToGroupNotification", jsonString);
+                                                                } else//When user is not connected to node server
+                                                                {
+                                                                    var newqueuemessage = new MessagequeueSchema({
+                                                                        type: 7,
+                                                                        userId_to: eachmember.user_id,
+                                                                        userId_from: groupId,
+                                                                        send_by: moderatorId,
+                                                                        msg_data: '{"added_users_id":"' + user + '"}'
+                                                                    });
+                                                                    newqueuemessage.save(function (err) {
+                                                                        if (err) {
+                                                                            return err;
+                                                                        } else {
+                                                                            console.log("New message  added in queue !");
+                                                                        }
+                                                                    });
+
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                    callback();
+                                                }, function () {
+
+
+                                                });
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        } else {
+                            jsonMessage.error = 101;
+                            jsonMessage.msg = "the requested user is not a moderator"
+                            var stringMessage = JSON.stringify(jsonMessage);
+                            io.sockets.socket(client.id).emit("addMemberToGroupNotification", stringMessage);
+                        }
+                    }
+                    else {
+                        console.log("Moderator is not present in the group"); //this situation will never arise
+                    }
+                }
+            });
+        });
+    });
+
 });

@@ -6,6 +6,7 @@ var userSchema = new mongoose.Schema({
 , socketId: String
 , phoneno: String
 , lastseen: Number
+, isOnline: Number
 });
 
 module.exports = mongoose.model('UserSchema', userSchema);
