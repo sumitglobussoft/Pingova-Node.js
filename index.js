@@ -43,7 +43,7 @@ process.on('SIGINT', function () {
 
 //var pool = mysql.createPool({
 //    connectionLimit: 100, //important
-//    host: '169.54.188.252',
+//    host: 'localhost',
 //    user: 'pingova',
 //    password: 'pNUNsGV8KRhPpEfM',
 //    database: 'pingova',

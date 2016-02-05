@@ -16,7 +16,9 @@ var con = require('./DBoperations.js');
 //app.use(express.bodyParser());
 app.use(bodyParser.json());
 //app.use(express.urlencoded());
-
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+  extended: true
+})); 
 app.use('/files', express.static(__dirname + '/uploads'));
 
 app.post('/upload-image', uploadImage, function (req, res) {
@@ -34,7 +36,18 @@ app.post('/upload-image', uploadImage, function (req, res) {
             files = [req.files.file1];
         }
         filesUploaded = files.length;
-        res.json({status: 200, storedName: newName, path: filePath, extension: fileExtension, size: fileSize});
+        var lastAccessed = Math.floor(Date.now() / 1000);
+        var strQuery = "INSERT INTO media( stored_name, path, extension, size, media_type, last_accessed) VALUES ('" + newName + "','uploads/image/" + newName + "','" + fileExtension + "'," + fileSize + ",'image'," + lastAccessed + ")";
+        console.log(strQuery);
+        con.query(strQuery, function (err, rows) {
+            if (err) {
+                console.log(err);
+                res.json({status: 403, data: 'error occured'});
+            }
+            else {
+                res.json({status: 200, storedName: newName, path: 'uploads/image/' + newName, extension: fileExtension, size: fileSize});
+            }
+        });
     }
 });
 
@@ -53,7 +66,18 @@ app.post('/upload-audio', uploadAudio, function (req, res) {
             files = [req.files.file1];
         }
         filesUploaded = files.length;
-        res.json({status: 200, storedName: newName, path: filePath, extension: fileExtension, size: fileSize});
+        var lastAccessed = Math.floor(Date.now() / 1000);
+        var strQuery = "INSERT INTO media( stored_name, path, extension, size, media_type, last_accessed) VALUES ('" + newName + "','uploads/audio/" + newName + "','" + fileExtension + "'," + fileSize + ",'audio'," + lastAccessed + ")";
+        console.log(strQuery);
+        con.query(strQuery, function (err, rows) {
+            if (err) {
+                console.log(err);
+                res.json({status: 403, data: 'error occured'});
+            }
+            else {
+                res.json({status: 200, storedName: newName, path: 'uploads/image/' + newName, extension: fileExtension, size: fileSize});
+            }
+        });
     }
 });
 
@@ -72,7 +96,18 @@ app.post('/upload-video', uploadVideo, function (req, res) {
             files = [req.files.file1];
         }
         filesUploaded = files.length;
-        res.json({status: 200, storedName: newName, path: filePath, extension: fileExtension, size: fileSize});
+        var lastAccessed = Math.floor(Date.now() / 1000);
+        var strQuery = "INSERT INTO media( stored_name, path, extension, size, media_type, last_accessed) VALUES ('" + newName + "','uploads/video/" + newName + "','" + fileExtension + "'," + fileSize + ",'video'," + lastAccessed + ")";
+        console.log(strQuery);
+        con.query(strQuery, function (err, rows) {
+            if (err) {
+                console.log(err);
+                res.json({status: 403, data: 'error occured'});
+            }
+            else {
+                res.json({status: 200, storedName: newName, path: 'uploads/video/' + newName, extension: fileExtension, size: fileSize});
+            }
+        });
     }
 });
 
@@ -121,13 +156,65 @@ app.post('/sendContact', contactImage, function (req, res) {
 });
 
 app.post('/pinexists', defaultPath, function (req, res) {
-    var pin = req.body.pin;
+   var pin = req.body.pin;
+	//res.send(req.body.pin);
+	
 
-    if (pin.length === 0) {
+if ((pin===undefined)||(pin.length === 0)) {
+    console.log('No data provided');
+    res.json({status: 402, data: 'no pin provided'});
+} else {
+    var strQuery = "SELECT * FROM users WHERE pin_no = '" + pin + "'";
+    con.query(strQuery, function (err, rows) {
+        if (err) {
+            console.log(err);
+            res.json({status: 403, data: 'error occured'});
+        }
+        else {
+            console.log('Data received from Db:\n');
+            console.log(rows);
+            if (rows.length > 0) {
+                res.json({status: 200, user_pin: pin, pin_exits: 1});
+            }
+            else {
+                res.json({status: 200, user_pin: pin, pin_exits: 0});
+            }
+        }
+    });
+}
+});
+
+app.post('/removemedia', uploadImage, function (req, res) {
+    var fs = require('fs');
+    var filePath = req.body.filepath;
+    console.log("filePath:" + filePath);
+    fs.unlink(filePath, function (err) {
+        if (err) {
+            res.json({status: 403, data: 'error occured'});
+        } else {
+            var strQuery = "DELETE FROM media WHERE path = '" + filePath + "'";
+            con.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+                    res.json({status: 403, data: 'error occured:Deleted from folder but not DB'});
+                }
+                else {
+                    res.json({status: 200, data: 'Done deleting from DB and folder'});
+
+                }
+            });
+        }
+    });
+});
+
+app.post('/mediaexists', defaultPath, function (req, res) {
+    var mediaUrl = req.body.media_url;
+    if (mediaUrl.length === 0) {
         console.log('No data provided');
-        res.json({status: 402, data: 'no pin provided'});
+        res.json({status: 402, data: 'no mediaUrl provided'});
     } else {
-        var strQuery = "SELECT * FROM users WHERE pin_no = '" + pin + "'";
+        var strQuery = "SELECT * FROM media WHERE path = '" + mediaUrl + "'";
+        console.log(strQuery);
         con.query(strQuery, function (err, rows) {
             if (err) {
                 console.log(err);
@@ -137,29 +224,62 @@ app.post('/pinexists', defaultPath, function (req, res) {
                 console.log('Data received from Db:\n');
                 console.log(rows);
                 if (rows.length > 0) {
-                    res.json({status: 200, user_pin: pin, pin_exits: 1});
+                    var lastAccessed = Math.floor(Date.now() / 1000);
+                    var updateQuery = "UPDATE media SET last_accessed = " + lastAccessed + " where path = '" + mediaUrl + "'";
+                    con.query(updateQuery, function (err, rows) {
+                        res.json({status: 200, media_url: mediaUrl, media_exits: 1});
+                    });
                 }
                 else {
-                    res.json({status: 200, user_pin: pin, pin_exits: 0});
+                    res.json({status: 200, media_exits: 0});
                 }
             }
         });
     }
 });
 
-app.post('/removefile', uploadImage, function (req, res) {
-    var fs = require('fs');
-    var filePath = req.body.filePath;
-    console.log("filePath:" + filePath);
-    fs.unlink(filePath, function (err) {
-        if (err) {
-            res.json({status: 403});
-        } else {
-            res.json({status: 200});
-        }
-    });
-});
+app.post('/phonenoexists', defaultPath, function (req, res) {
+    var phoneNo = req.body.phone_no;
+    if (phoneNo.length === 0) {
+        console.log('No data provided');
+        res.json({status: 402, data: 'no phoneNo provided'});
+    } else {
+        var strQuery = "SELECT * FROM users WHERE phone_no = " + phoneNo + "";
+        console.log(strQuery);
+        con.query(strQuery, function (err, rows) {
+            if (err) {
+                console.log(err);
+                res.json({status: 403, data: 'error occured'});
+            }
+            else {
+                console.log('Data received from Db:\n');
+                console.log(rows);
+                if (rows.length > 0) {
+                    var jsonObj = {};
+                    jsonObj.user_id = rows[0].userid;
+                    jsonObj.phone_no = rows[0].phone_no;
+                    jsonObj.pin_no = rows[0].pin_no;
+                    jsonObj.contact_displayname = rows[0].contact_displayname;
+                    jsonObj.contact_status = rows[0].contact_status;
+                    jsonObj.contact_gender = rows[0].contact_gender;
+                    jsonObj.contact_profilepic = rows[0].contact_profilepic;
+                    jsonObj.contact_profilepicthumb = rows[0].contact_profilepicthumb;
+                    jsonObj.contact_isnovisible = rows[0].contact_isnovisible;
+                    jsonObj.contact_isgroup = rows[0].contact_isgroup;
+                    jsonObj.contact_privacy_pic = rows[0].contact_privacy_pic;
+                    jsonObj.contact_sequence = rows[0].contact_sequence;
 
+
+                    res.json({status: 200, phone_no: phoneNo, phone_no_exits: 1, data: jsonObj});
+
+                }
+                else {
+                    res.json({status: 200, phone_no_exits: 0});
+                }
+            }
+        });
+    }
+});
 
 app.listen(3001, function () {
     console.log("Uploader is running on 3001");

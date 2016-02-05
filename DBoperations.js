@@ -5,12 +5,18 @@
 var mysql = require('mysql');
 
 // First you need to create a connection to the db
-var con = mysql.createConnection({
-  host: "localhost",
-  user: 'root',
-    password: '',
-    database: 'pingova'
-});
+ var con = mysql.createConnection({
+   host: "localhost",
+   user: 'root',
+     password: '',
+     database: 'pingova'
+ });
+//var con = mysql.createConnection({
+//  host: 'localhost',
+//  user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
+//    database: 'pingova'
+//});
 
 con.connect(function(err){
   if(err){
