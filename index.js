@@ -41,23 +41,23 @@ process.on('SIGINT', function () {
 });
 
 
-//var pool = mysql.createPool({
-//    connectionLimit: 100, //important
-//    host: 'localhost',
-//    user: 'pingova',
-//    password: 'pNUNsGV8KRhPpEfM',
-//    database: 'pingova',
-//    debug: false
-//});
-
 var pool = mysql.createPool({
     connectionLimit: 100, //important
     host: 'localhost',
-    user: 'root',
-    password: '',
+    user: 'pingova',
+    password: 'pNUNsGV8KRhPpEfM',
     database: 'pingova',
     debug: false
 });
+
+//var pool = mysql.createPool({
+//    connectionLimit: 100, //important
+//    host: 'localhost',
+//    user: 'root',
+//    password: '',
+//    database: 'pingova',
+//    debug: false
+//});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -694,6 +694,33 @@ io.sockets.on('connection', function (client) {
                                                     "msg_data": item.msg_data
                                                 });
                                             }
+                                            else if (item.type === 8) {//join group request
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
+                                            else if (item.type === 9) {//member accepted notification
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
+                                            else if (item.type === 10) {//accepted request notification
+                                                messagearray.message.push({
+                                                    "userid_to": item.userId_to,
+                                                    "type": item.type,
+                                                    "userid_from": item.userId_from,
+                                                    "sentby_user_id": item.send_by,
+                                                    "msg_data": item.msg_data
+                                                });
+                                            }
                                         }
                                         callback();
                                     }, function () {
@@ -1128,7 +1155,7 @@ io.sockets.on('connection', function (client) {
             connection.query(strQuery, function (err, groupDataRow) {
                 if (err) {
                     console.log(err);
-                    throw err;
+                    //throw err;
                 } else {
 
                     //saving moderator data
@@ -1194,7 +1221,7 @@ io.sockets.on('connection', function (client) {
                                                         console.log(err);
                                                         throw err;
                                                     } else {
-                                                        var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","moderator_id":"' + userId + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                        var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","moderator_id":"' + userId + '","arrayGroupMembers":' + groupmembesdata + '}';
                                                         if (io.sockets.sockets[groupmenbersocketId] !== undefined)
                                                         {
                                                             console.log("**socket id is valid for sending message user**");
@@ -1259,7 +1286,7 @@ io.sockets.on('connection', function (client) {
                 return;
             }
 
-            var strQuery = "SELECT * FROM groupusers WHERE group_id = " + groupId;
+            var strQuery = "SELECT * FROM groupusers WHERE group_id = " + groupId + "and request_status = 1";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
                 if (err) {
@@ -1449,7 +1476,7 @@ io.sockets.on('connection', function (client) {
                         var group_full_info = [];
                         async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
                         {
-                            var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupinfoeach.userid + " and user_id = userid";
+                            var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupinfoeach.userid + " and user_id = userid and request_status = 1"; //getting whole data of group members
                             console.log(strQuery);
                             connection.query(strQuery, function (err, rows) {
                                 if (err) {
@@ -1516,7 +1543,7 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1";
+            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1 and request_status = 1";
             console.log(strQuery);
             connection.query(strQuery, function (err, admininfo) {
                 if (err) {
@@ -1537,7 +1564,7 @@ io.sockets.on('connection', function (client) {
                             var jsonString = JSON.stringify(jsonData);
                             io.sockets.socket(client.id).emit("leaveGroupNotification", jsonString);
                             //querying DB to get full details of member of that group to notify them
-                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId;
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + "and request_status = 1";
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
@@ -1644,55 +1671,113 @@ io.sockets.on('connection', function (client) {
         });
 
     });
-//group Join Request
+//    group Join Request
     client.on("groupJoinRequest", function (msg) {
         var jsonMsg = JSON.parse(msg);
-        var user = jsonMsg.userto_id;
+        var user = jsonMsg.user_id;
         var groupId = jsonMsg.group_id;
-        var moderatorId = jsonMsg.moderator_id;
-        UserSchema.find({
-            'userId': moderatorId
-        }, function (err, doc) {
+        var moderatorId;
+        var jsonData = {};
+        var jsonUserData = {};
+        pool.getConnection(function (err, connection) {
             if (err)
             {
-                console.log("error in getting user details");
-                return err;
-            } else {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var userinfoQuery = "Select * FROM users WHERE userid=" + user; //getting the information of user who requested to join group
+            console.log(userinfoQuery);
+            connection.query(userinfoQuery, function (err, userinfo) {
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    if (userinfo.length > 0) {
+                        jsonUserData.user_id = userinfo[0].userid;
+                        jsonUserData.pin_no = userinfo[0].pin_no;
+                        jsonUserData.contact_displayname = userinfo[0].contact_displayname;
+                        jsonUserData.contact_status = userinfo[0].contact_status;
+                        jsonUserData.contact_gender = userinfo[0].contact_gender;
+                        jsonUserData.contact_profilepic = userinfo[0].contact_profilepic;
+                        jsonUserData.contact_profilepicthumb = userinfo[0].contact_profilepicthumb;
 
-                if (doc.length > 0) {
-                    // if user is present, then update his socket id					
-                    var socketid = doc[0].socketId;
-                    console.log("socket id of opponent " + socketid);
-                    if (io.sockets.sockets[socketid] !== undefined)
-                    {//user connected to node server
-                        io.sockets.socket(socketid).emit("groupJoinRequestMessage", msg);
-                    } else//When user is not connected to node server
-                    {
-                        console.log("Socket not connected");
-                        var messagedata = jsonMsg;
-                        console.log(typeof messagedata);
-                        if ((typeof messagedata) === "object")
-                        {
-                            messagedata = JSON.stringify(messagedata);
-                        }
-                        var newqueuemessage = new MessagequeueSchema({
-                            type: 8,
-                            userId_to: moderatorId,
-                            msg_data: messagedata,
-                            msg_serverid: 11,
-                            msg_status: 1
-                        });
-                        newqueuemessage.save(function (err) {
+
+                        var admininfoQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1"; //query for matching groupid and moderatori
+                        console.log(admininfoQuery);
+                        connection.query(admininfoQuery, function (err, admininfo) {
                             if (err) {
-                                return err;
+                                console.log(err);
+                                throw err;
                             } else {
-                                console.log("New message  added in queue !");
+                                if (admininfo.length > 0) {
+                                    moderatorId = admininfo[0].user_id;
+                                    //insert into groupusers
+                                    console.log("moderatorId:::"+moderatorId);
+                                    var strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=0";
+                                    console.log(strQueryGroupMembers);
+                                    connection.query(strQueryGroupMembers, function (err, row) {
+                                        if (err) {
+                                            console.log(err);
+                                            throw err;
+                                        } else {
+
+                                            UserSchema.find({
+                                                'userId': moderatorId
+                                            }, function (err, doc) {
+                                                if (err)
+                                                {
+                                                    console.log("error in getting user details");
+                                                    return err;
+                                                } else {
+
+                                                    if (doc.length > 0) {
+                                                        // if user is present, then update his socket id					
+                                                        var socketid = doc[0].socketId;
+                                                        console.log("socket id of opponent " + socketid);
+                                                        jsonData.jsonUserData = jsonUserData;
+                                                        jsonData.groupId = groupId;
+                                                        jsonData.moderatorId = moderatorId;
+                                                        var jsonString = JSON.stringify(jsonData);
+                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                        {//user connected to node server
+                                                            io.sockets.socket(socketid).emit("groupJoinRequestMessage", jsonString);
+                                                        } else//When user is not connected to node server
+                                                        {
+                                                            console.log("Socket not connected");
+                                                            var messagedata = jsonString;
+                                                            console.log(typeof messagedata);
+                                                            if ((typeof messagedata) === "object")
+                                                            {
+                                                                messagedata = JSON.stringify(messagedata);
+                                                            }
+                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                type: 8,
+                                                                userId_to: moderatorId,
+                                                                userId_from: groupId,
+                                                                send_by: user,
+                                                                msg_data: messagedata
+                                                            });
+                                                            newqueuemessage.save(function (err) {
+                                                                if (err) {
+                                                                    return err;
+                                                                } else {
+                                                                    console.log("New message  added in queue !");
+                                                                }
+                                                            });
+                                                        }
+
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
                             }
                         });
                     }
-
                 }
-            }
+            });
         });
     });
 
@@ -1742,7 +1827,7 @@ io.sockets.on('connection', function (client) {
                         var jsonMessage = {};
                         if ("" + moderatorinfo[0].user_id === moderatorId) {//the requested user is a moderator
                             // perform the required task
-                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId;
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + "and request_status = 1";
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
@@ -1750,7 +1835,7 @@ io.sockets.on('connection', function (client) {
                                     throw err;
                                 } else {
                                     //deleting the record 
-                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user;
+                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user + "and request_status = 1";
                                     console.log(strQuery);
                                     connection.query(strQuery, function (err, row) {
                                         if (err) {
@@ -1886,7 +1971,7 @@ io.sockets.on('connection', function (client) {
                                     });
 
                                     //querying DB to get full details of member of that group to notify them
-                                    var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupId + " and users.userid=groupusers.user_id";
+                                    var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupId + " and users.userid=groupusers.user_id and request_status = 1";
                                     console.log(strQuery);
                                     connection.query(strQuery, function (err, groupinfo) {
                                         if (err) {
@@ -1909,7 +1994,7 @@ io.sockets.on('connection', function (client) {
                                                     group_members_data.contact_profilepicthumb = eachmember.contact_profilepicthumb;
 
                                                     group_members_list.push(group_members_data);
-                                                    if (eachmember.user_id+"" !== user) {
+                                                    if (eachmember.user_id + "" !== user) {
                                                         //to get socket id
                                                         UserSchema.find({
                                                             'userId': eachmember.user_id
@@ -1950,13 +2035,13 @@ io.sockets.on('connection', function (client) {
                                                                 }
                                                             }
                                                         });
-                                                       
+
                                                     }
-                                                     callback();
+                                                    callback();
                                                 }, function () {
                                                     console.log("in function========================");
                                                     var groupmembesdata = JSON.stringify(group_members_list);
-                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","moderator_id":"' + moderatorinfo[0].user_id + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","moderator_id":"' + moderatorinfo[0].user_id + '","arrayGroupMembers":' + groupmembesdata + '}';
 
                                                     ///notifying the added member
                                                     UserSchema.find({
@@ -2004,6 +2089,247 @@ io.sockets.on('connection', function (client) {
                                             }
                                         }
                                     });
+                                }
+                            });
+                        } else {
+                            jsonMessage.error = 101;
+                            jsonMessage.msg = "the requested user is not a moderator"
+                            var stringMessage = JSON.stringify(jsonMessage);
+                            io.sockets.socket(client.id).emit("addMemberToGroupNotification", stringMessage);
+                        }
+                    }
+                    else {
+                        console.log("Moderator is not present in the group"); //this situation will never arise
+                    }
+                }
+            });
+        });
+    });
+
+    client.on("acceptOrRejectMemberRequest", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var group_members_list = [];
+        var moderatorId = jsonMsg.moderator_id;
+        var user = jsonMsg.user_id;
+        var groupId = jsonMsg.group_id;
+        var requestStatus = jsonMsg.request_status;
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "Select * FROM groupusers,users WHERE group_id=" + groupId + " and is_moderator=1 AND users.userid = groupusers.group_id";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, moderatorinfo) {
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    console.log(moderatorinfo);
+                    if (moderatorinfo.length > 0) {
+                        var jsonMessage = {};
+                        if ("" + moderatorinfo[0].user_id === moderatorId) {//the requested user is a moderator
+                            // perform the required task
+                            //deleting the record 
+                            var strQuery = "UPDATE groupusers SET  request_status=" + requestStatus + " where group_id =" + groupId + " and user_id =" + user;
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, row) {
+                                if (err) {
+                                    console.log(err);
+                                    throw err;
+                                } else {
+                                    if (requestStatus === '1')
+                                    {
+                                        var jsonUserData = {};
+                                        var getUserDataQuery = "SELECT * FROM users WHERE userid=" + user;
+                                        console.log(strQuery);
+                                        connection.query(getUserDataQuery, function (err, userData) {
+                                            if (err) {
+
+                                            } else {
+                                                if (userData.length > 0) {
+                                                    jsonUserData.user_id = userData[0].userid;
+                                                    jsonUserData.pin_no = userData[0].pin_no;
+                                                    jsonUserData.contact_displayname = userData[0].contact_displayname;
+                                                    jsonUserData.contact_status = userData[0].contact_status;
+                                                    jsonUserData.contact_gender = userData[0].contact_gender;
+                                                    jsonUserData.contact_profilepic = userData[0].contact_profilepic;
+                                                    jsonUserData.contact_profilepicthumb = userData[0].contact_profilepicthumb;
+
+                                                }
+                                            }
+
+                                        });
+
+                                        //querying DB to get full details of member of that group to notify them
+                                        var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupId + " and users.userid=groupusers.user_id and request_status = 1";
+                                        console.log(strQuery);
+                                        connection.query(strQuery, function (err, groupinfo) {
+                                            if (err) {
+                                                console.log(err);
+                                                throw err;
+                                            } else {
+
+                                                console.log(groupinfo);
+                                                if (groupinfo.length > 0) {
+
+                                                    async.forEachSeries(groupinfo, function (eachmember, callback)
+                                                    {
+                                                        var group_members_data = {};
+                                                        group_members_data.user_id = eachmember.userid;
+                                                        group_members_data.pin_no = eachmember.pin_no;
+                                                        group_members_data.contact_displayname = eachmember.contact_displayname;
+                                                        group_members_data.contact_status = eachmember.contact_status;
+                                                        group_members_data.contact_gender = eachmember.contact_gender;
+                                                        group_members_data.contact_profilepic = eachmember.contact_profilepic;
+                                                        group_members_data.contact_profilepicthumb = eachmember.contact_profilepicthumb;
+
+                                                        group_members_list.push(group_members_data);
+                                                        if (eachmember.user_id + "" !== user) {
+                                                            //to get socket id
+                                                            UserSchema.find({
+                                                                'userId': eachmember.user_id
+                                                            }, function (err, doc) {
+                                                                if (err)
+                                                                {
+                                                                    console.log("error in getting user details");
+                                                                    return err;
+                                                                } else {
+                                                                    if (doc.length > 0) {
+                                                                        var socketid = doc[0].socketId;
+                                                                        console.log("socket id of opponent " + socketid);
+                                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                                        {//user connected to node server
+                                                                            jsonMessage.moderator_id = moderatorId;
+                                                                            jsonMessage.group_id = groupId;
+                                                                            jsonMessage.user_data = jsonUserData;
+                                                                            var jsonString = JSON.stringify(jsonMessage);
+                                                                            io.sockets.socket(socketid).emit("acceptedMemberToGroupNotification", jsonString);
+                                                                        } else//When user is not connected to node server
+                                                                        {
+                                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                                type: 9,
+                                                                                userId_to: eachmember.user_id,
+                                                                                userId_from: groupId,
+                                                                                send_by: moderatorId,
+                                                                                msg_data: '{"added_users_id":"' + user + '"}'
+                                                                            });
+                                                                            newqueuemessage.save(function (err) {
+                                                                                if (err) {
+                                                                                    return err;
+                                                                                } else {
+                                                                                    console.log("New message  added in queue !");
+                                                                                }
+                                                                            });
+
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+
+                                                        }
+                                                        callback();
+                                                    }, function () {
+                                                        console.log("in function========================");
+                                                        var groupmembesdata = JSON.stringify(group_members_list);
+                                                        var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","moderator_id":"' + moderatorinfo[0].user_id + '","arrayGroupMembers":' + groupmembesdata + '}';
+
+                                                        ///notifying the added member
+                                                        UserSchema.find({
+                                                            'userId': user
+                                                        }, function (err, doc) {
+                                                            if (err)
+                                                            {
+                                                                console.log("error in getting user details");
+                                                                return err;
+                                                            } else {
+                                                                if (doc.length > 0) {
+                                                                    var socketid = doc[0].socketId;
+                                                                    console.log("socket id of opponent " + socketid);
+                                                                    if (io.sockets.sockets[socketid] !== undefined)
+                                                                    {//user connected to node server
+                                                                        //jsonMessage.moderator_id = moderatorId;
+                                                                        // jsonMessage.group_id = groupId;
+                                                                        // jsonMessage.user_data = jsonUserData;
+                                                                        // var jsonString = JSON.stringify(jsonMessage);
+                                                                        io.sockets.socket(socketid).emit("groupJoinResponse", groupCreationData);
+                                                                    } else//When user is not connected to node server
+                                                                    {
+                                                                        var newqueuemessage = new MessagequeueSchema({
+                                                                            type: 10,
+                                                                            userId_to: user,
+                                                                            userId_from: groupId,
+                                                                            send_by: moderatorId,
+                                                                            msg_data: groupCreationData,
+                                                                            msg_serverid: 11
+                                                                        });
+                                                                        newqueuemessage.save(function (err) {
+                                                                            if (err) {
+                                                                                return err;
+                                                                            } else {
+                                                                                console.log("New message  added in queue !");
+                                                                            }
+                                                                        });
+
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+
+
+                                                    });
+                                                }
+                                            }
+                                        });
+                                    }else if(requestStatus === '2'){
+                                                       
+                                                        var groupJoinResponseData = '{"request_status":"2"}';
+
+                                                        ///notifying the added member
+                                                        UserSchema.find({
+                                                            'userId': user
+                                                        }, function (err, doc) {
+                                                            if (err)
+                                                            {
+                                                                console.log("error in getting user details");
+                                                                return err;
+                                                            } else {
+                                                                if (doc.length > 0) {
+                                                                    var socketid = doc[0].socketId;
+                                                                    console.log("socket id of opponent " + socketid);
+                                                                    if (io.sockets.sockets[socketid] !== undefined)
+                                                                    {//user connected to node server
+                                                                        //jsonMessage.moderator_id = moderatorId;
+                                                                        // jsonMessage.group_id = groupId;
+                                                                        // jsonMessage.user_data = jsonUserData;
+                                                                        // var jsonString = JSON.stringify(jsonMessage);
+                                                                        io.sockets.socket(socketid).emit("groupJoinResponse", groupJoinResponseData);
+                                                                    } else//When user is not connected to node server
+                                                                    {
+                                                                        var newqueuemessage = new MessagequeueSchema({
+                                                                            type: 10,
+                                                                            userId_to: user,
+                                                                            userId_from: groupId,
+                                                                            send_by: moderatorId,
+                                                                            msg_data: groupJoinResponseData,
+                                                                            msg_serverid: 11
+                                                                        });
+                                                                        newqueuemessage.save(function (err) {
+                                                                            if (err) {
+                                                                                return err;
+                                                                            } else {
+                                                                                console.log("New message  added in queue !");
+                                                                            }
+                                                                        });
+
+                                                                    }
+                                                                }
+                                                            }
+                                                        });
+
+                                    }
                                 }
                             });
                         } else {
