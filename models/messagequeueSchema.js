@@ -13,5 +13,6 @@ var messagequeueSchema = new mongoose.Schema({
 , msg_sendtime:String
 , msg_localid: Number
 , msg_serverid: Number
+, timestamp: Number
 });
 module.exports = mongoose.model('MessagequeueSchema', messagequeueSchema);

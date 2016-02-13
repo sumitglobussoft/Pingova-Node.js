@@ -54,7 +54,7 @@ var pool = mysql.createPool({
 //    connectionLimit: 100, //important
 //    host: 'localhost',
 //    user: 'root',
-//    password: '',
+//    password: 'root',
 //    database: 'pingova',
 //    debug: false
 //});
@@ -78,7 +78,9 @@ var pool = mysql.createPool({
 io.sockets.on('connection', function (client) {
     console.log("client connected: " + client.id);
     io.sockets.socket(client.id).emit("connected", client.id);
+
     client.on("sendMessage", function (chatMessage) {
+        var receivedTime = "" + Math.floor(Date.now() / 1000);
         //console.log("Message From: " + chatMessage.fromName);
         // console.log("Message To: " + chatMessage.toName);
 
@@ -88,6 +90,7 @@ io.sockets.on('connection', function (client) {
         //  "toClientID" : chatMessage.toClientID,
         //  "msg" : chatMessage.msg});
         var jsonMsg = JSON.parse(chatMessage);
+        jsonMsg.timestamp = receivedTime;
         var user = jsonMsg.userto_id;
         UserSchema.find({
             'userId': user
@@ -120,6 +123,7 @@ io.sockets.on('connection', function (client) {
                     msg_status: 1,
                     //msg_sendtime:jsonMsg
                     msg_localid: jsonMsg.msg_local_id,
+                    timestamp: receivedTime,
                     msg_serverid: 11
                 });
                 newqueuemessage.save(function (err) {
@@ -135,7 +139,7 @@ io.sockets.on('connection', function (client) {
                     console.log("socket id of opponent " + socketid);
                     if (io.sockets.sockets[socketid] !== undefined)
                     {//user connected to node server
-                        io.sockets.socket(socketid).emit("receivemessage", chatMessage);
+                        io.sockets.socket(socketid).emit("receivemessage", JSON.stringify(jsonMsg));
 //                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"2","userid_to":"' + jsonMsg.userto_id + '"}';
 //                        if (io.sockets.socket(client.id) !== undefined)
 //                        {
@@ -166,7 +170,7 @@ io.sockets.on('connection', function (client) {
                     {
                         console.log("==============++++++==============");
                         console.log("Socket not connected");
-                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '"}';
+                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
                         if (io.sockets.socket(client.id) !== undefined)
                         {
@@ -182,6 +186,7 @@ io.sockets.on('connection', function (client) {
                                 msg_localid: jsonMsg.msg_local_id,
                                 msg_serverid: 11,
                                 msg_status: 1,
+                                timestamp: receivedTime
                             });
                             newqueuemessage.save(function (err) {
                                 if (err) {
@@ -225,7 +230,7 @@ io.sockets.on('connection', function (client) {
                 } else//when doc get from mongadb length is less that 0
                 {
                     console.log("Socket not connected");
-                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '"}';
+                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
                     // io.sockets.socket(client.id).emit("messagestatus", myarr);
                     if (io.sockets.socket(client.id) !== undefined)
                     {
@@ -241,6 +246,7 @@ io.sockets.on('connection', function (client) {
                             msg_localid: jsonMsg.msg_local_id,
                             msg_serverid: 11,
                             msg_status: 1,
+                            timestamp: receivedTime
                         });
                         newqueuemessage.save(function (err) {
                             if (err) {
@@ -284,10 +290,12 @@ io.sockets.on('connection', function (client) {
     });
     //get the delivered status
     client.on("receivedMessageStatus", function (msg) {
+        var receivedTime = "" + Math.floor(Date.now() / 1000);
         console.log("=====================+++++++++++++++++=========================");
 
         console.log("=====================receivedMessageStatus=========================" + msg);
         var jsonMsg = JSON.parse(msg);
+        jsonMsg.timestamp = jsonMsg;
         var user = jsonMsg.userfrom_id;
         console.log("=====================user=========================" + user);
         console.log("sentby_user_id" + jsonMsg.sentby_user_id);
@@ -306,7 +314,7 @@ io.sockets.on('connection', function (client) {
                 if (doc.length > 0) {
 
                     var socketid = doc[0].socketId;
-                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"' + jsonMsg.msg_status + '","userid_to":"' + jsonMsg.userto_id + '"}';
+                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"' + jsonMsg.msg_status + '","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
                     console.log("myarr::::::::" + myarr);
                     // io.sockets.socket(client.id).emit("messagestatus", myarr);
                     if (jsonMsg.type === 1) {
@@ -323,7 +331,8 @@ io.sockets.on('connection', function (client) {
                                 to_send: jsonMsg.userto_id,
                                 msg_localid: jsonMsg.msg_local_id,
                                 msg_serverid: 11,
-                                msg_status: jsonMsg.msg_status
+                                msg_status: jsonMsg.msg_status,
+                                timestamp: receivedTime
                             });
                             newqueuemessage.save(function (err) {
                                 if (err) {
@@ -356,6 +365,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //checking user is using pingova or not
     client.on("checkContactUser", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -368,6 +378,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     client.on("updatecontact", function (msg)
     {
 
@@ -389,6 +400,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
     client.on("checkSequence", function (msg)
     {
         var jsonMsg = JSON.parse(msg);
@@ -410,7 +422,7 @@ io.sockets.on('connection', function (client) {
                         var sequencecheck = rows[0].contact_sequence;
                         console.log(sequencecheck);
                         console.log(jsonMsg.sequence);
-                        if (sequencecheck == jsonMsg.sequence)
+                        if (sequencecheck === jsonMsg.sequence)
                         {
                             io.sockets.socket(client.id).emit("checkSequenceResponse", true);
                         } else
@@ -444,8 +456,10 @@ io.sockets.on('connection', function (client) {
             //	}
         });
     });
+
     client.on("checkStatus", function (msg) {
         var jsonMsg1 = JSON.parse(msg);
+        var receivedTime = "" + Math.floor(Date.now() / 1000);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.userId);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.sequence);
         var strQuery = "SELECT * FROM users WHERE userid=" + jsonMsg1.userId;
@@ -496,9 +510,10 @@ io.sockets.on('connection', function (client) {
                                 }
                             }
                         });
+                        //).sort({'timestamp': -1}
                         MessagequeueSchema.find({
                             'userId_to': userid
-                        }, function (err, doc)
+                        }).sort({'timestamp': 1}).exec( function (err, doc)
                         {
                             if (err)
                             {
@@ -531,6 +546,7 @@ io.sockets.on('connection', function (client) {
                                                 "contact_name": item.contact_name,
                                                 "contact_number": item.contact_number,
                                                 "contact_image": item.contact_image,
+                                                "timestamp": item.timestamp,
                                                 "msg_server_id": item.msg_serverid
                                             });
                                             var messagestatusarray = {messagestatus: []};
@@ -558,7 +574,7 @@ io.sockets.on('connection', function (client) {
                                                         var socketid = doc[0].socketId;
                                                         if (io.sockets.sockets[socketid] !== undefined)
                                                         {
-                                                            var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '"}';
+                                                            var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '","timestamp":"' + receivedTime + '"}';
                                                             io.sockets.socket(socketid).emit("messagestatus", myarr);
                                                         } else
                                                         {
@@ -568,6 +584,7 @@ io.sockets.on('connection', function (client) {
                                                                 to_send: userid_to,
                                                                 msg_localid: localid,
                                                                 msg_serverid: 11,
+                                                                timestamp: receivedTime,
                                                                 msg_status: 2
                                                             });
                                                             newqueuemessage.save(function (err) {
@@ -590,6 +607,7 @@ io.sockets.on('connection', function (client) {
                                                     "userid_to": item.to_send,
                                                     "msg_local_id": item.msg_localid,
                                                     "msg_server_id": item.msg_serverid,
+                                                    "timestamp": item.timestamp,
                                                     "msg_status": item.msg_status
                                                 });
                                             }
@@ -599,7 +617,8 @@ io.sockets.on('connection', function (client) {
                                                     "type": 3,
                                                     "userid_to": item.userId_to,
                                                     "msg_server_id": item.msg_serverid,
-                                                    "msg_data": item.msg_data
+                                                    "msg_data": item.msg_data,
+                                                    "timestamp": item.timestamp
                                                 });
                                             }
                                             /***************************************/
@@ -615,6 +634,7 @@ io.sockets.on('connection', function (client) {
                                                     "contact_number": item.contact_number,
                                                     "contact_image": item.contact_image,
                                                     "sentby_user_id": item.send_by,
+                                                    "timestamp": item.timestamp,
                                                     "msg_server_id": item.msg_serverid
                                                 });
 //                                            var messagestatusarray = {messagestatus: []};
@@ -673,6 +693,7 @@ io.sockets.on('connection', function (client) {
                                                     "type": item.type,
                                                     "userid_from": item.userId_from,
                                                     "sentby_user_id": item.send_by,
+                                                    "timestamp": item.timestamp,
                                                     "msg_data": item.msg_data
                                                 });
                                             }
@@ -680,44 +701,53 @@ io.sockets.on('connection', function (client) {
                                                 messagearray.message.push({
                                                     "userid_to": item.userId_to,
                                                     "type": item.type,
-                                                    "userid_from": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "msg_data": item.msg_data
+                                                    "group_id": item.userId_from,
+                                                    "moderator_id": item.send_by,
+                                                    "timestamp": item.timestamp,
+                                                    "user_id": item.msg_data
                                                 });
                                             }
                                             else if (item.type === 7) {//add members to group
+                                                var jsonmsg_data = JSON.parse(item.msg_data);
                                                 messagearray.message.push({
                                                     "userid_to": item.userId_to,
                                                     "type": item.type,
-                                                    "userid_from": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "msg_data": item.msg_data
+                                                    "group_id": item.userId_from,
+                                                    "moderatorId": item.send_by,
+                                                    "timestamp": item.timestamp,
+                                                    "user_data": jsonmsg_data
                                                 });
                                             }
                                             else if (item.type === 8) {//join group request
+                                                var jsonmsg_data = JSON.parse(item.msg_data);
                                                 messagearray.message.push({
-                                                    "userid_to": item.userId_to,
+                                                    "moderatorId": item.userId_to,
                                                     "type": item.type,
-                                                    "userid_from": item.userId_from,
+                                                    "groupId": item.userId_from,
                                                     "sentby_user_id": item.send_by,
-                                                    "msg_data": item.msg_data
+                                                    "timestamp": item.timestamp,
+                                                    "user_data": jsonmsg_data
                                                 });
                                             }
-                                            else if (item.type === 9) {//member accepted notification
+
+                                            else if (item.type === 9) {//member accepted notification to all
+                                                var jsonmsg_data = JSON.parse(item.msg_data);
                                                 messagearray.message.push({
                                                     "userid_to": item.userId_to,
                                                     "type": item.type,
-                                                    "userid_from": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "msg_data": item.msg_data
+                                                    "group_id": item.userId_from,
+                                                    "moderator_id": item.send_by,
+                                                    "timestamp": item.timestamp,
+                                                    "user_data": jsonmsg_data
                                                 });
                                             }
-                                            else if (item.type === 10) {//accepted request notification
+                                            else if (item.type === 10) {//accepted request notification to requested user
                                                 messagearray.message.push({
                                                     "userid_to": item.userId_to,
                                                     "type": item.type,
                                                     "userid_from": item.userId_from,
                                                     "sentby_user_id": item.send_by,
+                                                    "timestamp": item.timestamp,
                                                     "msg_data": item.msg_data
                                                 });
                                             }
@@ -790,6 +820,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
     client.on("getContactDetails", function (msg) {
 
         //var contact = JSON.parse(msg);
@@ -818,10 +849,10 @@ io.sockets.on('connection', function (client) {
             //	}
         });
     });
+
     client.on("sendReadReport", function () {
     });
-    client.on("isUseronline", function () {
-    });
+
     client.on("disconnect", function () {
         var lastseen = Math.floor(Date.now() / 1000);
         console.log("=================================>" + lastseen);
@@ -848,6 +879,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //to run when user closes the application but application will run in back ground
     client.on("applicationInBackground", function () {
         var lastseen = Math.floor(Date.now() / 1000);
@@ -866,6 +898,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //searching the user by pin
     client.on("searchUserPin", function (msg) {
         pool.getConnection(function (err, connection) {
@@ -895,6 +928,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
 //checking if user online
     client.on("searchUserOnline", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -934,6 +968,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //get the typing status
     client.on("sendTypingStatus", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -958,6 +993,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //updating status
     client.on("updateContactStatus", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -984,6 +1020,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
     //Make mobile number visible/invisible to contact
     client.on("mobileNumberVisibility", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -1011,6 +1048,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
     //sending friend request
     client.on("sendFriendRequest", function (data) {
 
@@ -1092,6 +1130,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //accept or reject friends request
     client.on("acceptRejectFriendRequest", function (data) {
 
@@ -1134,8 +1173,10 @@ io.sockets.on('connection', function (client) {
             }
         });
     });
+
     //Creating the group
     client.on("createGroup", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
         var groupId = jsonMsg.group_id;
         var arrayGroupMembers = jsonMsg.array_group_members;
@@ -1157,119 +1198,128 @@ io.sockets.on('connection', function (client) {
                     console.log(err);
                     //throw err;
                 } else {
-
-                    //saving moderator data
-//                        var strQueryGroupAdmin = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + userId + ", is_moderator=1, request_status=1";
-//                                console.log(strQueryGroupAdmin);
-//                                connection.query(strQueryGroupAdmin, function (err, row) {
-//                                if (err) {
+                    if (groupDataRow.length > 0)
+                    {
+                        //adding  Group Created Time
+                        var addGroupCreatedTime = "UPDATE users SET created_time =" + receivedTime + " where userid =" + groupId;
+                        console.log(addGroupCreatedTime);
+                        connection.query(addGroupCreatedTime);
+//                        , function (err, row) {
+//                            if (err) {
 //                                console.log(err);
-//                                        throw err;
-//                                } else {
+//                                throw err;
+//                            } else {
+//                            }
+//                        });
 
-                    //fetching group members data
+                        //fetching group members data
 
-                    var strQuery = "SELECT * FROM users WHERE userid in (" + arrayGroupMembers + ")";
-                    console.log("========>" + strQuery);
-                    connection.query(strQuery, function (err, item) {
-                        if (err) {
-                            console.log(err);
-                            throw err;
-                        } else {
+                        var strQuery = "SELECT * FROM users WHERE userid in (" + arrayGroupMembers + ")";
+                        console.log("========>" + strQuery);
+                        connection.query(strQuery, function (err, item) {
+                            if (err) {
+                                console.log(err);
+                                throw err;
+                            } else {
 
-                            async.forEachSeries(item, function (member, callback)
-                            {
-                                console.log("inside adding group data");
-                                var group_members_data = {};
-                                group_members_data.user_id = member.userid;
-                                group_members_data.pin_no = member.pin_no;
-                                group_members_data.contact_displayname = member.contact_displayname;
-                                group_members_data.contact_status = member.contact_status;
-                                group_members_data.contact_gender = member.contact_gender;
-                                group_members_data.contact_profilepic = member.contact_profilepic;
-                                group_members_data.contact_profilepicthumb = member.contact_profilepicthumb;
-
-                                group_members_list.push(group_members_data);
-                                callback();
-                            }, function () {
-
-                                groupmembesdata = JSON.stringify(group_members_list);
-                                //saving all the group members data
-                                async.forEachSeries(arrayGroupMembers, function (user, callback)
+                                async.forEachSeries(item, function (member, callback)
                                 {
+                                    console.log("inside adding group data");
+                                    var group_members_data = {};
+                                    group_members_data.user_id = member.userid;
+                                    group_members_data.pin_no = member.pin_no;
+                                    group_members_data.contact_displayname = member.contact_displayname;
+                                    group_members_data.contact_status = member.contact_status;
+                                    group_members_data.contact_gender = member.contact_gender;
+                                    group_members_data.contact_profilepic = member.contact_profilepic;
+                                    group_members_data.contact_profilepicthumb = member.contact_profilepicthumb;
 
-
-                                    UserSchema.find({
-                                        'userId': user
-                                    }, function (err, doc) {
-                                        if (err) {
-                                            console.log("::::::::::::err:::::::::::::" + err);
-                                        }
-                                        else {
-                                            console.log(doc.length + "::::::::::::no err in searching users:::::::::::::" + user);
-                                            if (doc.length > 0) {
-                                                console.log("::::");
-                                                var groupmenbersocketId = doc[0].socketId;
-                                                console.log("*****************item***********************" + user);
-                                                var strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=1";
-                                                if ("" + user === userId) {
-                                                    strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=1, request_status=1";
-                                                }
-                                                console.log(strQueryGroupMembers);
-                                                connection.query(strQueryGroupMembers, function (err, row) {
-                                                    if (err) {
-                                                        console.log(err);
-                                                        throw err;
-                                                    } else {
-                                                        var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","moderator_id":"' + userId + '","arrayGroupMembers":' + groupmembesdata + '}';
-                                                        if (io.sockets.sockets[groupmenbersocketId] !== undefined)
-                                                        {
-                                                            console.log("**socket id is valid for sending message user**");
-                                                            io.sockets.socket(groupmenbersocketId).emit("groupCreation", groupCreationData);
-                                                        }
-                                                        else {
-                                                            if ((typeof groupCreationData) === "object")
-                                                            {
-                                                                groupCreationData = JSON.stringify(groupCreationData);
-                                                            }
-                                                            var newqueuemessage = new MessagequeueSchema({
-                                                                type: 3,
-                                                                userId_to: user,
-                                                                userId_from: groupId,
-                                                                msg_data: groupCreationData,
-                                                                msg_serverid: 11
-                                                            });
-                                                            newqueuemessage.save(function (err) {
-                                                                if (err) {
-                                                                    return err;
-                                                                } else {
-                                                                    console.log("New message  added in queue !");
-                                                                }
-                                                            });
-                                                        }
-
-
-
-                                                    }
-                                                });
-                                            }
-                                        }
-                                    });
+                                    group_members_list.push(group_members_data);
                                     callback();
                                 }, function () {
-                                    // io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
+
+                                    groupmembesdata = JSON.stringify(group_members_list);
+                                    //saving all the group members data
+                                    async.forEachSeries(arrayGroupMembers, function (user, callback)
+                                    {
+
+
+                                        UserSchema.find({
+                                            'userId': user
+                                        }, function (err, doc) {
+                                            if (err) {
+                                                console.log("::::::::::::err:::::::::::::" + err);
+                                            }
+                                            else {
+                                                console.log(doc.length + "::::::::::::no err in searching users:::::::::::::" + user);
+                                                if (doc.length > 0) {
+                                                    console.log("::::");
+                                                    var groupmenbersocketId = doc[0].socketId;
+                                                    console.log("*****************item***********************" + user);
+                                                    var strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=1";
+                                                    if ("" + user === userId) {
+                                                        strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=1, request_status=1";
+                                                    }
+                                                    console.log(strQueryGroupMembers);
+                                                    connection.query(strQueryGroupMembers, function (err, row) {
+                                                        if (err) {
+                                                            console.log(err);
+//                                                        throw err;
+                                                        } else {
+                                                            var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","group_timestamp":"' + receivedTime + '","moderator_id":"' + userId + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                            if (io.sockets.sockets[groupmenbersocketId] !== undefined)
+                                                            {
+                                                                console.log("**socket id is valid for sending message user**");
+                                                                io.sockets.socket(groupmenbersocketId).emit("groupCreation", groupCreationData);
+                                                            }
+                                                            else {
+                                                                if ((typeof groupCreationData) === "object")
+                                                                {
+                                                                    groupCreationData = JSON.stringify(groupCreationData);
+                                                                }
+                                                                var newqueuemessage = new MessagequeueSchema({
+                                                                    type: 3,
+                                                                    userId_to: user,
+                                                                    userId_from: groupId,
+                                                                    msg_data: groupCreationData,
+                                                                    timestamp: receivedTime,
+                                                                    msg_serverid: 11
+                                                                });
+                                                                newqueuemessage.save(function (err) {
+                                                                    if (err) {
+                                                                        return err;
+                                                                    } else {
+                                                                        console.log("New message  added in queue !");
+                                                                    }
+                                                                });
+                                                            }
+
+
+
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        });
+                                        callback();
+                                    }, function () {
+                                        // io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
+                                    });
                                 });
-                            });
-                        }
-                    });
-//                                }
-//                                });
+                            }
+                        });
+                    }
+                    else {
+                        io.sockets.socket(client.id).emit("groupCreation", "invalid groupID");
+                    }
                 }
             });
         });
     });
+
     //sending Message To the Group
     client.on("sendMessageToGroup", function (groupMsg) {
+        var receivedTime = "" + Math.floor(Date.now() / 1000);
         var jsonGroupMsg = JSON.parse(groupMsg);
         var groupId = jsonGroupMsg.userto_id; //group id
         var userIdFrom = jsonGroupMsg.userfrom_id;
@@ -1286,7 +1336,7 @@ io.sockets.on('connection', function (client) {
                 return;
             }
 
-            var strQuery = "SELECT * FROM groupusers WHERE group_id = " + groupId + "and request_status = 1";
+            var strQuery = "SELECT * FROM groupusers WHERE group_id = " + groupId + " and request_status = 1";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
                 if (err) {
@@ -1312,6 +1362,7 @@ io.sockets.on('connection', function (client) {
                             jsonData.userfrom_id = groupId;
                             jsonData.userto_id = item.user_id;
                             jsonData.sentby_user_id = sentBy;
+                            jsonData.timestamp = receivedTime;
                             //send to each  
                             //to will be user from will by group sent by will be from user id message 
                             //ack will be given to received user
@@ -1331,6 +1382,7 @@ io.sockets.on('connection', function (client) {
             });
         });
     });
+
     //sending message to group function
     var sendGroupMessageFun = function (groupMessage) {
         console.log("groupMessage::::::::::::::::::::::::::::" + groupMessage);
@@ -1368,6 +1420,7 @@ io.sockets.on('connection', function (client) {
                     send_by: jsonMsg.sentby_user_id,
                     //msg_sendtime:jsonMsg
                     msg_localid: jsonMsg.msg_local_id,
+                    timestamp: jsonMsg.timestamp,
                     msg_serverid: 11
                 });
                 newqueuemessage.save(function (err) {
@@ -1388,7 +1441,7 @@ io.sockets.on('connection', function (client) {
                     {
                         console.log("==============++++++==============");
                         console.log("Socket not connected");
-                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '"}';
+                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + jsonMsg.timestamp + '"}';
                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
                         /* un comment when status needed
                          if (io.sockets.socket(client.id) !== undefined)
@@ -1453,6 +1506,7 @@ io.sockets.on('connection', function (client) {
             }
         });
     };
+
     //searching the public groups
     client.on("searchGroup", function (msg) {
         pool.getConnection(function (err, connection) {
@@ -1532,6 +1586,7 @@ io.sockets.on('connection', function (client) {
 
     //leaving group event
     client.on("leaveGroup", function (data) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonData = JSON.parse(data);
         var groupId = jsonData.group_id;
         var userId = jsonData.user_id;
@@ -1561,10 +1616,11 @@ io.sockets.on('connection', function (client) {
                             var jsonData = {};
                             jsonData.group_id = groupId;
                             jsonData.user_id = userId;
+                            jsonData.timestamp = receivedTime;
                             var jsonString = JSON.stringify(jsonData);
                             io.sockets.socket(client.id).emit("leaveGroupNotification", jsonString);
                             //querying DB to get full details of member of that group to notify them
-                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + "and request_status = 1";
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + " and request_status = 1";
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
@@ -1618,6 +1674,7 @@ io.sockets.on('connection', function (client) {
                                                             var jsonData = {};
                                                             jsonData.group_id = groupId;
                                                             jsonData.user_id = userId;
+                                                            jsonData.timestamp = receivedTime;
                                                             jsonData.msg_data = '{"moderator_id":"' + moderatorId + '"}';
                                                             var jsonString = JSON.stringify(jsonData);
                                                             io.sockets.socket(socketid).emit("leaveGroupNotification", jsonString);
@@ -1628,6 +1685,7 @@ io.sockets.on('connection', function (client) {
                                                                 userId_to: eachmember.user_id,
                                                                 userId_from: groupId,
                                                                 send_by: userId,
+                                                                timestamp: receivedTime,
                                                                 msg_data: '{"moderator_id":"' + moderatorId + '"}'
                                                             });
                                                             newqueuemessage.save(function (err) {
@@ -1673,6 +1731,7 @@ io.sockets.on('connection', function (client) {
     });
 //    group Join Request
     client.on("groupJoinRequest", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
         var groupId = jsonMsg.group_id;
@@ -1713,7 +1772,7 @@ io.sockets.on('connection', function (client) {
                                 if (admininfo.length > 0) {
                                     moderatorId = admininfo[0].user_id;
                                     //insert into groupusers
-                                    console.log("moderatorId:::"+moderatorId);
+                                    console.log("moderatorId:::" + moderatorId);
                                     var strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=0";
                                     console.log(strQueryGroupMembers);
                                     connection.query(strQueryGroupMembers, function (err, row) {
@@ -1735,9 +1794,10 @@ io.sockets.on('connection', function (client) {
                                                         // if user is present, then update his socket id					
                                                         var socketid = doc[0].socketId;
                                                         console.log("socket id of opponent " + socketid);
-                                                        jsonData.jsonUserData = jsonUserData;
+                                                        jsonData.user_data = jsonUserData;
                                                         jsonData.groupId = groupId;
                                                         jsonData.moderatorId = moderatorId;
+                                                        jsonData.timestamp = receivedTime;
                                                         var jsonString = JSON.stringify(jsonData);
                                                         if (io.sockets.sockets[socketid] !== undefined)
                                                         {//user connected to node server
@@ -1745,18 +1805,14 @@ io.sockets.on('connection', function (client) {
                                                         } else//When user is not connected to node server
                                                         {
                                                             console.log("Socket not connected");
-                                                            var messagedata = jsonString;
-                                                            console.log(typeof messagedata);
-                                                            if ((typeof messagedata) === "object")
-                                                            {
-                                                                messagedata = JSON.stringify(messagedata);
-                                                            }
+                                                            var jsonUserDataString = JSON.stringify(jsonUserData);
                                                             var newqueuemessage = new MessagequeueSchema({
                                                                 type: 8,
                                                                 userId_to: moderatorId,
                                                                 userId_from: groupId,
                                                                 send_by: user,
-                                                                msg_data: messagedata
+                                                                timestamp: receivedTime,
+                                                                msg_data: jsonUserDataString
                                                             });
                                                             newqueuemessage.save(function (err) {
                                                                 if (err) {
@@ -1803,6 +1859,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("removeFromGroup", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
 
         var moderatorId = jsonMsg.moderator_id;
@@ -1827,7 +1884,7 @@ io.sockets.on('connection', function (client) {
                         var jsonMessage = {};
                         if ("" + moderatorinfo[0].user_id === moderatorId) {//the requested user is a moderator
                             // perform the required task
-                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + "and request_status = 1";
+                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupId + " and request_status = 1";
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
@@ -1835,7 +1892,7 @@ io.sockets.on('connection', function (client) {
                                     throw err;
                                 } else {
                                     //deleting the record 
-                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user + "and request_status = 1";
+                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user + " and request_status = 1";
                                     console.log(strQuery);
                                     connection.query(strQuery, function (err, row) {
                                         if (err) {
@@ -1867,6 +1924,7 @@ io.sockets.on('connection', function (client) {
                                                                     jsonMessage.moderator_id = moderatorId;
                                                                     jsonMessage.group_id = groupId;
                                                                     jsonMessage.user_id = user;
+                                                                    jsonMessage.timestamp = receivedTime;
                                                                     var jsonString = JSON.stringify(jsonMessage);
                                                                     io.sockets.socket(socketid).emit("removeFromGroupNotification", jsonString);
                                                                 } else//When user is not connected to node server
@@ -1876,7 +1934,8 @@ io.sockets.on('connection', function (client) {
                                                                         userId_to: eachmember.user_id,
                                                                         userId_from: groupId,
                                                                         send_by: moderatorId,
-                                                                        msg_data: '{"removed_users_id":"' + user + '"}'
+                                                                        timestamp: receivedTime,
+                                                                        msg_data: user
                                                                     });
                                                                     newqueuemessage.save(function (err) {
                                                                         if (err) {
@@ -1902,7 +1961,7 @@ io.sockets.on('connection', function (client) {
                             });
                         } else {
                             jsonMessage.error = 101;
-                            jsonMessage.msg = "the requested user is not a moderator"
+                            jsonMessage.msg = "the requested user is not a moderator";
                             var stringMessage = JSON.stringify(jsonMessage);
                             io.sockets.socket(client.id).emit("removeFromGroupNotification", stringMessage);
                         }
@@ -1916,6 +1975,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("addMemberToGroup", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
         var group_members_list = [];
 
@@ -2005,6 +2065,7 @@ io.sockets.on('connection', function (client) {
                                                                 return err;
                                                             } else {
                                                                 if (doc.length > 0) {
+                                                                    var jsonUserDataString = JSON.stringify(jsonUserData);
                                                                     var socketid = doc[0].socketId;
                                                                     console.log("socket id of opponent " + socketid);
                                                                     if (io.sockets.sockets[socketid] !== undefined)
@@ -2012,16 +2073,20 @@ io.sockets.on('connection', function (client) {
                                                                         jsonMessage.moderator_id = moderatorId;
                                                                         jsonMessage.group_id = groupId;
                                                                         jsonMessage.user_data = jsonUserData;
+                                                                        jsonMessage.timestamp = receivedTime;
                                                                         var jsonString = JSON.stringify(jsonMessage);
                                                                         io.sockets.socket(socketid).emit("addMemberToGroupNotification", jsonString);
                                                                     } else//When user is not connected to node server
                                                                     {
+                                                                        console.log("ooooooooooooooooooooooooo");
                                                                         var newqueuemessage = new MessagequeueSchema({
                                                                             type: 7,
                                                                             userId_to: eachmember.user_id,
                                                                             userId_from: groupId,
                                                                             send_by: moderatorId,
-                                                                            msg_data: '{"added_users_id":"' + user + '"}'
+                                                                            msg_data: jsonUserDataString,
+                                                                            timestamp: receivedTime,
+                                                                            msg_serverid: 11
                                                                         });
                                                                         newqueuemessage.save(function (err) {
                                                                             if (err) {
@@ -2030,7 +2095,7 @@ io.sockets.on('connection', function (client) {
                                                                                 console.log("New message  added in queue !");
                                                                             }
                                                                         });
-
+                                                                        console.log("ooooooooooooooooooooooooo");
                                                                     }
                                                                 }
                                                             }
@@ -2041,7 +2106,7 @@ io.sockets.on('connection', function (client) {
                                                 }, function () {
                                                     console.log("in function========================");
                                                     var groupmembesdata = JSON.stringify(group_members_list);
-                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","moderator_id":"' + moderatorinfo[0].user_id + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
 
                                                     ///notifying the added member
                                                     UserSchema.find({
@@ -2069,6 +2134,7 @@ io.sockets.on('connection', function (client) {
                                                                         userId_to: user,
                                                                         userId_from: groupId,
                                                                         msg_data: groupCreationData,
+                                                                        timestamp: receivedTime,
                                                                         msg_serverid: 11
                                                                     });
                                                                     newqueuemessage.save(function (err) {
@@ -2093,7 +2159,8 @@ io.sockets.on('connection', function (client) {
                             });
                         } else {
                             jsonMessage.error = 101;
-                            jsonMessage.msg = "the requested user is not a moderator"
+                            jsonMessage.msg = "the requested user is not a moderator";
+                            jsonMessage.timestamp = receivedTime;
                             var stringMessage = JSON.stringify(jsonMessage);
                             io.sockets.socket(client.id).emit("addMemberToGroupNotification", stringMessage);
                         }
@@ -2107,6 +2174,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("acceptOrRejectMemberRequest", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
         var group_members_list = [];
         var moderatorId = jsonMsg.moderator_id;
@@ -2205,16 +2273,19 @@ io.sockets.on('connection', function (client) {
                                                                             jsonMessage.moderator_id = moderatorId;
                                                                             jsonMessage.group_id = groupId;
                                                                             jsonMessage.user_data = jsonUserData;
+                                                                            jsonMessage.timestamp = receivedTime;
                                                                             var jsonString = JSON.stringify(jsonMessage);
                                                                             io.sockets.socket(socketid).emit("acceptedMemberToGroupNotification", jsonString);
                                                                         } else//When user is not connected to node server
                                                                         {
+                                                                            var jsonUserDataString = JSON.stringify(jsonUserData);
                                                                             var newqueuemessage = new MessagequeueSchema({
                                                                                 type: 9,
                                                                                 userId_to: eachmember.user_id,
                                                                                 userId_from: groupId,
                                                                                 send_by: moderatorId,
-                                                                                msg_data: '{"added_users_id":"' + user + '"}'
+                                                                                timestamp: receivedTime,
+                                                                                msg_data: jsonUserDataString
                                                                             });
                                                                             newqueuemessage.save(function (err) {
                                                                                 if (err) {
@@ -2234,7 +2305,7 @@ io.sockets.on('connection', function (client) {
                                                     }, function () {
                                                         console.log("in function========================");
                                                         var groupmembesdata = JSON.stringify(group_members_list);
-                                                        var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","moderator_id":"' + moderatorinfo[0].user_id + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                        var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
 
                                                         ///notifying the added member
                                                         UserSchema.find({
@@ -2263,6 +2334,7 @@ io.sockets.on('connection', function (client) {
                                                                             userId_from: groupId,
                                                                             send_by: moderatorId,
                                                                             msg_data: groupCreationData,
+                                                                            timestamp: receivedTime,
                                                                             msg_serverid: 11
                                                                         });
                                                                         newqueuemessage.save(function (err) {
@@ -2283,58 +2355,59 @@ io.sockets.on('connection', function (client) {
                                                 }
                                             }
                                         });
-                                    }else if(requestStatus === '2'){
-                                                       
-                                                        var groupJoinResponseData = '{"request_status":"2"}';
+                                    } else if (requestStatus === '2') {
 
-                                                        ///notifying the added member
-                                                        UserSchema.find({
-                                                            'userId': user
-                                                        }, function (err, doc) {
-                                                            if (err)
-                                                            {
-                                                                console.log("error in getting user details");
+                                        var groupJoinResponseData = '{"request_status":"2", "timestamp":"' + receivedTime + '"}';
+
+                                        ///notifying the added member
+                                        UserSchema.find({
+                                            'userId': user
+                                        }, function (err, doc) {
+                                            if (err)
+                                            {
+                                                console.log("error in getting user details");
+                                                return err;
+                                            } else {
+                                                if (doc.length > 0) {
+                                                    var socketid = doc[0].socketId;
+                                                    console.log("socket id of opponent " + socketid);
+                                                    if (io.sockets.sockets[socketid] !== undefined)
+                                                    {//user connected to node server
+                                                        //jsonMessage.moderator_id = moderatorId;
+                                                        // jsonMessage.group_id = groupId;
+                                                        // jsonMessage.user_data = jsonUserData;
+                                                        // var jsonString = JSON.stringify(jsonMessage);
+                                                        io.sockets.socket(socketid).emit("groupJoinResponse", groupJoinResponseData);
+                                                    } else//When user is not connected to node server
+                                                    {
+                                                        var newqueuemessage = new MessagequeueSchema({
+                                                            type: 10,
+                                                            userId_to: user,
+                                                            userId_from: groupId,
+                                                            send_by: moderatorId,
+                                                            msg_data: groupJoinResponseData,
+                                                            timestamp: receivedTime,
+                                                            msg_serverid: 11
+                                                        });
+                                                        newqueuemessage.save(function (err) {
+                                                            if (err) {
                                                                 return err;
                                                             } else {
-                                                                if (doc.length > 0) {
-                                                                    var socketid = doc[0].socketId;
-                                                                    console.log("socket id of opponent " + socketid);
-                                                                    if (io.sockets.sockets[socketid] !== undefined)
-                                                                    {//user connected to node server
-                                                                        //jsonMessage.moderator_id = moderatorId;
-                                                                        // jsonMessage.group_id = groupId;
-                                                                        // jsonMessage.user_data = jsonUserData;
-                                                                        // var jsonString = JSON.stringify(jsonMessage);
-                                                                        io.sockets.socket(socketid).emit("groupJoinResponse", groupJoinResponseData);
-                                                                    } else//When user is not connected to node server
-                                                                    {
-                                                                        var newqueuemessage = new MessagequeueSchema({
-                                                                            type: 10,
-                                                                            userId_to: user,
-                                                                            userId_from: groupId,
-                                                                            send_by: moderatorId,
-                                                                            msg_data: groupJoinResponseData,
-                                                                            msg_serverid: 11
-                                                                        });
-                                                                        newqueuemessage.save(function (err) {
-                                                                            if (err) {
-                                                                                return err;
-                                                                            } else {
-                                                                                console.log("New message  added in queue !");
-                                                                            }
-                                                                        });
-
-                                                                    }
-                                                                }
+                                                                console.log("New message  added in queue !");
                                                             }
                                                         });
+
+                                                    }
+                                                }
+                                            }
+                                        });
 
                                     }
                                 }
                             });
                         } else {
                             jsonMessage.error = 101;
-                            jsonMessage.msg = "the requested user is not a moderator"
+                            jsonMessage.msg = "the requested user is not a moderator";
                             var stringMessage = JSON.stringify(jsonMessage);
                             io.sockets.socket(client.id).emit("addMemberToGroupNotification", stringMessage);
                         }
