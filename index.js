@@ -41,23 +41,23 @@ process.on('SIGINT', function () {
 });
 
 
-var pool = mysql.createPool({
-    connectionLimit: 100, //important
-    host: 'localhost',
-    user: 'pingova',
-    password: 'pNUNsGV8KRhPpEfM',
-    database: 'pingova',
-    debug: false
-});
-
 //var pool = mysql.createPool({
 //    connectionLimit: 100, //important
 //    host: 'localhost',
-//    user: 'root',
-//    password: 'root',
+//    user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
 //    database: 'pingova',
 //    debug: false
 //});
+
+var pool = mysql.createPool({
+    connectionLimit: 100, //important
+    host: 'localhost',
+    user: 'root',
+    password: 'root',
+    database: 'pingova',
+    debug: false
+});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -79,19 +79,22 @@ io.sockets.on('connection', function (client) {
     console.log("client connected: " + client.id);
     io.sockets.socket(client.id).emit("connected", client.id);
 
+    //sends P2P mesagess
     client.on("sendMessage", function (chatMessage) {
         var receivedTime = "" + Math.floor(Date.now() / 1000);
-        //console.log("Message From: " + chatMessage.fromName);
+        ///*console.log("Message From: " + chatMessage.fromName);
         // console.log("Message To: " + chatMessage.toName);
 
 
         // io.sockets.socket(chatMessage.toClientID).emit("chatMessage", {"fromName" : chatMessage.fromName,
         //"toName" : chatMessage.toName,
         //  "toClientID" : chatMessage.toClientID,
-        //  "msg" : chatMessage.msg});
+        //  "msg" : chatMessage.msg});*/
         var jsonMsg = JSON.parse(chatMessage);
-        jsonMsg.timestamp = receivedTime;
+        jsonMsg.timestamp = receivedTime; //getting the message from client and fetching the json data
         var user = jsonMsg.userto_id;
+
+        //getting the mongo data of the user to whom the message is sent
         UserSchema.find({
             'userId': user
         }, function (err, doc) {
@@ -105,6 +108,7 @@ io.sockets.on('connection', function (client) {
                 var messagedata = jsonMsg.msg_data;
                 console.log(typeof messagedata);
                 if ((typeof messagedata) === "object") {
+                    //incase the message is in object form converting it to string
                     messagedata = JSON.stringify(messagedata);
                 }
 
@@ -121,11 +125,11 @@ io.sockets.on('connection', function (client) {
                     msg_type: jsonMsg.msg_type,
                     msg_data: messagedata,
                     msg_status: 1,
-                    //msg_sendtime:jsonMsg
                     msg_localid: jsonMsg.msg_local_id,
                     timestamp: receivedTime,
                     msg_serverid: 11
                 });
+                //saving the message to database
                 newqueuemessage.save(function (err) {
                     if (err) {
                         return err;
@@ -133,6 +137,7 @@ io.sockets.on('connection', function (client) {
                         console.log("New message  added in queue !");
                     }
                 });
+                //if the entered ID exists in mongo DB , this condition will be true and executed
                 if (doc.length > 0) {
                     // if user is present, then update his socket id					
                     var socketid = doc[0].socketId;
@@ -140,52 +145,25 @@ io.sockets.on('connection', function (client) {
                     if (io.sockets.sockets[socketid] !== undefined)
                     {//user connected to node server
                         io.sockets.socket(socketid).emit("receivemessage", JSON.stringify(jsonMsg));
-//                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"2","userid_to":"' + jsonMsg.userto_id + '"}';
-//                        if (io.sockets.socket(client.id) !== undefined)
-//                        {
-//                            console.log("**socket id is valid for sending message user**")
-//                            io.sockets.socket(client.id).emit("messagestatus", myarr);
-//                        } else
-//                        {
-//                            console.log("**socket id is not valid for sending message user**")
-//                            var newqueuemessage = new MessagequeueSchema({
-//                                type: 2,
-//                                userId_to: jsonMsg.userfrom_id,
-//                                to_send: jsonMsg.userto_id,
-//                                msg_localid: jsonMsg.msg_local_id,
-//                                msg_serverid: 11,
-//                                msg_status: 2,
-//                            });
-//                            newqueuemessage.save(function (err) {
-//                                if (err) {
-//                                    return err;
-//                                } else {
-//                                    console.log("New message  added in queue !");
-//                                }
-//                            });
-//                        }
-
-
                     } else//When user is not connected to node server
                     {
-                        console.log("==============++++++==============");
                         console.log("Socket not connected");
                         var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
                         if (io.sockets.socket(client.id) !== undefined)
                         {
-                            console.log("**socket id is valid for sending message user**")
+                            console.log("**socket id is valid for sending message user**");
                             io.sockets.socket(client.id).emit("messagestatus", myarr);
                         } else
                         {
-                            console.log("**socket id is not valid for sending message user**")
+                            console.log("**socket id is not valid for sending message user**");
                             var newqueuemessage = new MessagequeueSchema({
                                 type: 2,
                                 userId_to: jsonMsg.userfrom_id,
                                 to_send: jsonMsg.userto_id,
                                 msg_localid: jsonMsg.msg_local_id,
                                 msg_serverid: 11,
-                                msg_status: 1,
+                                msg_status: 1, //message not delivered to user
                                 timestamp: receivedTime
                             });
                             newqueuemessage.save(function (err) {
@@ -196,37 +174,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         }
-
-//                        var messagedata = jsonMsg.msg_data;
-//                        console.log(typeof messagedata);
-//                        if ((typeof messagedata) === "object") {
-//                            messagedata = JSON.stringify(messagedata);
-//                        }
-//                        /*msg_status: {
-//                         created: null,
-//                         delivered: int,
-//                         seen: int
-//                         },*/
-//                        var newqueuemessage = new MessagequeueSchema({
-//                            type: 1,
-//                            userId_to: jsonMsg.userto_id,
-//                            userId_from: jsonMsg.userfrom_id,
-//                            msg_type: jsonMsg.msg_type,
-//                            msg_data: messagedata,
-//                            msg_status: 1,
-//                            //msg_sendtime:jsonMsg
-//                            msg_localid: jsonMsg.msg_local_id,
-//                            msg_serverid: 11
-//                        });
-//                        newqueuemessage.save(function (err) {
-//                            if (err) {
-//                                return err;
-//                            } else {
-//                                console.log("New message  added in queue !");
-//                            }
-//                        });
                     }
-
                 } else//when doc get from mongadb length is less that 0
                 {
                     console.log("Socket not connected");
@@ -234,11 +182,11 @@ io.sockets.on('connection', function (client) {
                     // io.sockets.socket(client.id).emit("messagestatus", myarr);
                     if (io.sockets.socket(client.id) !== undefined)
                     {
-                        console.log("**socket id is valid for sending message user**")
+                        console.log("**socket id is valid for sending message user**");
                         io.sockets.socket(client.id).emit("messagestatus", myarr);
                     } else
                     {
-                        console.log("**socket id is not valid for sending message user**")
+                        console.log("**socket id is not valid for sending message user**");
                         var newqueuemessage = new MessagequeueSchema({
                             type: 2,
                             userId_to: jsonMsg.userfrom_id,
@@ -256,43 +204,14 @@ io.sockets.on('connection', function (client) {
                             }
                         });
                     }
-//                    console.log("============================");
-//                    console.log(jsonMsg.msg_data);
-//                    var messagedata = jsonMsg.msg_data;
-//                    console.log(typeof messagedata);
-//                    if ((typeof messagedata) === "object") {
-//                        messagedata = JSON.stringify(messagedata);
-//                    }
-//                    console.log(typeof messagedata);
-//                    var newqueuemessage = new MessagequeueSchema({
-//                        type: 1,
-//                        userId_to: jsonMsg.userto_id,
-//                        userId_from: jsonMsg.userfrom_id,
-//                        msg_type: jsonMsg.msg_type,
-//                        msg_data: messagedata,
-//                        msg_status: 1,
-//                        //msg_sendtime:jsonMsg
-//                        msg_localid: jsonMsg.msg_local_id,
-//                        msg_serverid: 11
-//                    });
-//                    newqueuemessage.save(function (err) {
-//                        if (err) {
-//                            return err;
-//                        } else {
-//                            console.log("New message  added in queue !");
-//                        }
-//                    });
-
                 }
-
             }
         });
     });
+
     //get the delivered status
     client.on("receivedMessageStatus", function (msg) {
         var receivedTime = "" + Math.floor(Date.now() / 1000);
-        console.log("=====================+++++++++++++++++=========================");
-
         console.log("=====================receivedMessageStatus=========================" + msg);
         var jsonMsg = JSON.parse(msg);
         jsonMsg.timestamp = jsonMsg;
@@ -369,19 +288,26 @@ io.sockets.on('connection', function (client) {
     //checking user is using pingova or not
     client.on("checkContactUser", function (msg) {
         var jsonMsg = JSON.parse(msg);
-        var strQuery = "SELECT * FROM 'User' WHERE phoneno=" + jsonMsg.phone_no;
-        connection.query(strQuery, function (err, rows) {
-            if (err) {
-                throw err;
-            } else {
-                console.log(rows);
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                connection.release();
+                return;
             }
+            var strQuery = "SELECT * FROM 'User' WHERE phoneno=" + jsonMsg.phone_no;
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log(rows);
+                }
+            });
         });
     });
 
+    //to check if the no.s sent are in pingova n if so update contact
     client.on("updatecontact", function (msg)
     {
-
         pool.getConnection(function (err, connection) {
             if (err)
             {
@@ -409,7 +335,6 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-
             var Query = "SELECT * FROM users WHERE userid=" + jsonMsg.userid;
             connection.query(Query, function (err, rows)
             {
@@ -434,29 +359,12 @@ io.sockets.on('connection', function (client) {
                     {
                         console.log("user dont have data in my sql");
                     }
-
                 }
             });
-            //connection.query(Query, function (err, rows) {
-            //	if (err) {
-            //		throw err;
-            //	} else 
-            //	{
-            //		var sequencecheck=rows[0].contact_sequence;
-            //		console.log(sequencecheck);
-            //		console.log(jsonMsg.sequence);
-            //		if(sequencecheck == jsonMsg.sequence)
-            //		{
-            //			io.sockets.socket(client.id).emit("checkSequenceResponse", true);
-            //		}else
-            //		{
-            //			io.sockets.socket(client.id).emit("checkSequenceResponse", false);
-            //		}
-            //		console.log(rows);
-            //	}
         });
     });
 
+    //when a user connects to the sockets it hits this service. and here in this event we get all the pending messages 
     client.on("checkStatus", function (msg) {
         var jsonMsg1 = JSON.parse(msg);
         var receivedTime = "" + Math.floor(Date.now() / 1000);
@@ -513,7 +421,7 @@ io.sockets.on('connection', function (client) {
                         //).sort({'timestamp': -1}
                         MessagequeueSchema.find({
                             'userId_to': userid
-                        }).sort({'timestamp': 1}).exec( function (err, doc)
+                        }).sort({'timestamp': 1}).exec(function (err, doc)
                         {
                             if (err)
                             {
@@ -822,7 +730,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("getContactDetails", function (msg) {
-
+         var user_data = {};
         //var contact = JSON.parse(msg);
         console.log(" user id get from local user  " + msg);
         var Query = "SELECT * FROM users WHERE userid=" + msg;
@@ -835,26 +743,32 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 if (!err)
                 {
-                    io.sockets.socket(client.id).emit("getContactDetailsResponse", rows[0]);
+                   
+                   if(rows.length>0){
+                        user_data.user_id = rows[0].userid;
+                        user_data.pin_no = rows[0].pin_no;
+                        user_data.contact_displayname = rows[0].contact_displayname;
+                        user_data.contact_status = rows[0].contact_status;
+                        user_data.contact_gender = rows[0].contact_gender;
+                        user_data.contact_profilepic = rows[0].contact_profilepic;
+                        user_data.contact_profilepicthumb = rows[0].contact_profilepicthumb;
+                        user_data.contact_isnovisible = rows[0].contact_isnovisible;
+                        user_data.contact_isgroup = rows[0].contact_isgroup;                        
+                    }
+                    
+                    io.sockets.socket(client.id).emit("getContactDetailsResponse", user_data);
                 }
             });
-            //console.log(" query for getting user details  "+Query)
-            //connection.query(Query, function (err, rows) {
-            //	if (err) {
-            //		throw err;
-            //	} else 
-            //	{
-
-
-            //	}
         });
     });
 
     client.on("sendReadReport", function () {
     });
 
+    // the event is hit when user disconnects from the socket
     client.on("disconnect", function () {
         var lastseen = Math.floor(Date.now() / 1000);
+        //gets the current time in secs
         console.log("=================================>" + lastseen);
         UserSchema.find({
             'socketId': client.id
@@ -865,7 +779,7 @@ io.sockets.on('connection', function (client) {
                 if (doc.length > 0) {
                     doc[0].lastseen = lastseen;
                     doc[0].isOnline = 0;
-                    doc[0].save();
+                    doc[0].save(); //updates the DB with offline and time
                 }
             }
         });
@@ -922,7 +836,6 @@ io.sockets.on('connection', function (client) {
 
                         io.sockets.socket(client.id).emit("searchUserPinResponse", rows);
                     }
-
                 }
 
             });
@@ -998,7 +911,7 @@ io.sockets.on('connection', function (client) {
     client.on("updateContactStatus", function (msg) {
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
-        var lastSeenInfo = jsonMsg.contactStatus;
+        var contactStatus = jsonMsg.contact_status;
         pool.getConnection(function (err, connection) {
             if (err)
             {
@@ -1006,17 +919,23 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-
-            var strQuery = "UPDATE users SET contact_status ='" + lastSeenInfo + "' WHERE userid = " + user;
+            var strQuery = "UPDATE users SET contact_status ='" + contactStatus + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
                 if (err) {
                     console.log(err);
-                    throw err;
+//                    throw err;
                 } else {
+                    var myarr;
                     console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        myarr = '{"updated_status":"1"}';
+                    } else {
+                        myarr = '{"updated_status":"0"}';
+                    }
+                    io.sockets.socket(client.id).emit("updateContactStatusResponse", myarr);
                 }
-
             });
         });
     });
@@ -1191,7 +1110,7 @@ io.sockets.on('connection', function (client) {
                 return;
             }
             //saving creating group info to user table
-            var strQuery = "SELECT * FROM users WHERE userId = " + groupId;
+            var strQuery = "SELECT * FROM users WHERE userId = " + groupId + " and contact_isgroup=1";
             console.log(strQuery);
             connection.query(strQuery, function (err, groupDataRow) {
                 if (err) {
@@ -1204,16 +1123,7 @@ io.sockets.on('connection', function (client) {
                         var addGroupCreatedTime = "UPDATE users SET created_time =" + receivedTime + " where userid =" + groupId;
                         console.log(addGroupCreatedTime);
                         connection.query(addGroupCreatedTime);
-//                        , function (err, row) {
-//                            if (err) {
-//                                console.log(err);
-//                                throw err;
-//                            } else {
-//                            }
-//                        });
-
                         //fetching group members data
-
                         var strQuery = "SELECT * FROM users WHERE userid in (" + arrayGroupMembers + ")";
                         console.log("========>" + strQuery);
                         connection.query(strQuery, function (err, item) {
@@ -1237,13 +1147,10 @@ io.sockets.on('connection', function (client) {
                                     group_members_list.push(group_members_data);
                                     callback();
                                 }, function () {
-
                                     groupmembesdata = JSON.stringify(group_members_list);
                                     //saving all the group members data
                                     async.forEachSeries(arrayGroupMembers, function (user, callback)
                                     {
-
-
                                         UserSchema.find({
                                             'userId': user
                                         }, function (err, doc) {
@@ -1293,9 +1200,6 @@ io.sockets.on('connection', function (client) {
                                                                     }
                                                                 });
                                                             }
-
-
-
                                                         }
                                                     });
                                                 }
@@ -1350,9 +1254,6 @@ io.sockets.on('connection', function (client) {
                             console.log("****************************************");
                             console.log("****************" + item + "****************");
                             //{"msg_local_id":"70","userfrom_id":"131","userto_id":"132","msg_type":"0","msg_data":"hello"}
-
-
-
                             // var jsonData = '{"msg_local_id":"' + msgLocalId + '","msg_type":"' + msgType + '","msg_data":"' + msgData + '","userfrom_id":"' + groupId + '","userto_id":"' + item.user_id + '","sentby_user_id":"' + sentBy + '"}';
 
                             var jsonData = {};
@@ -1584,7 +1485,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
-    //leaving group event
+//  leaving group event
     client.on("leaveGroup", function (data) {
         var receivedTime = Math.floor(Date.now() / 1000);
         var jsonData = JSON.parse(data);
@@ -1837,6 +1738,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+//  update when the user comes online
     client.on("updateUserOnline", function (msg) {
         var jsonMsg = JSON.parse(msg);
         var status = jsonMsg.status;
@@ -1858,6 +1760,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+//  remove a member from the group
     client.on("removeFromGroup", function (msg) {
         var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
@@ -1974,6 +1877,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+//  add a member to the group
     client.on("addMemberToGroup", function (msg) {
         var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
@@ -2173,6 +2077,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+//  accept or reject group join request from the pingova user by moderator
     client.on("acceptOrRejectMemberRequest", function (msg) {
         var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
@@ -2420,4 +2325,181 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+    //updating visibility of lastseen
+    client.on("updateLastseenVisibility", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var visibilityLastseen = jsonMsg.status; //0 all 1 none 2 contact
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "UPDATE users SET contact_lastseen_visibility ='" + visibilityLastseen + "' WHERE userid = " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    var myarr;
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        myarr = '{"updated_lastseen_visibility":"1"}';
+                    } else {
+                        myarr = '{"updated_lastseen_visibility":"0"}';
+                    }
+                    io.sockets.socket(client.id).emit("updateLastseenVisibilityResponse", myarr);
+                }
+            });
+        });
+    });
+
+    //updating visibility of status
+    client.on("updateStatusVisibility", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var visibilityStatus = jsonMsg.status; //0 all 1 none 2 contact
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "UPDATE users SET contact_status_visibility ='" + visibilityStatus + "' WHERE userid = " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    var myarr;
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        myarr = '{"updated_status_visibility":"1"}';
+                    } else {
+                        myarr = '{"updated_status_visibility":"0"}';
+                    }
+                    io.sockets.socket(client.id).emit("updateStatusVisibilityResponse", myarr);
+                }
+            });
+        });
+    });
+
+    //updating visibility of profile pic
+    client.on("updateProfilePicVisibility", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var visibilityProfilePic = jsonMsg.status; //0 all 1 none 2 contact
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "UPDATE users SET contact_privacy_pic ='" + visibilityProfilePic + "' WHERE userid = " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    var myarr;
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        myarr = '{"updated_profilepic_visibility":"1"}';
+                    } else {
+                        myarr = '{"updated_profilepic_visibility":"0"}';
+                    }
+                    io.sockets.socket(client.id).emit("updateProfilePicVisibilityResponse", myarr);
+                }
+            });
+        });
+    });
+
+    //fetching data of visible contacts to update with recent data
+    client.on("updateUserData", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var members_list = [];
+        var arrayMembers = jsonMsg.array_members;
+        console.log(arrayMembers);
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "SELECT * FROM users WHERE userid in (" + arrayMembers + ")";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    async.forEachSeries(rows, function (member, callback)
+                    {
+                        console.log("inside adding group data");
+                        var members_data = {};
+                        members_data.user_id = member.userid;
+                        members_data.pin_no = member.pin_no;
+                        members_data.contact_displayname = member.contact_displayname;
+                        members_data.contact_status = member.contact_status;
+                        members_data.contact_gender = member.contact_gender;
+                        members_data.contact_profilepic = member.contact_profilepic;
+                        members_data.contact_profilepicthumb = member.contact_profilepicthumb;
+
+                        members_list.push(members_data);
+                        callback();
+                    }, function () {
+                        io.sockets.socket(client.id).emit("updateUserDataResponse", members_list);
+                    });
+                }
+            });
+        });
+    });
+
+    //updating display name
+    client.on("updateDisplayName", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var displayName = jsonMsg.display_name;
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "UPDATE users SET contact_displayname ='" + displayName + "' WHERE userid = " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    var myarr;
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        myarr = '{"updated_status":"1"}';
+                    } else {
+                        myarr = '{"updated_status":"0"}';
+                    }
+                    io.sockets.socket(client.id).emit("updateDisplayNameResponse", myarr);
+                }
+            });
+        });
+    });
 });
