@@ -25,6 +25,7 @@ app.post('/upload-image', uploadImage, function (req, res) {
     var filesUploaded = 0;
     if (Object.keys(req.files).length === 0) {
         console.log('No files uploaded');
+		res.json({status: 402, data: 'no image attached'});
     } else {
         console.log("in");
         var newName = req.files['my-file'].name;
@@ -56,6 +57,7 @@ app.post('/upload-audio', uploadAudio, function (req, res) {
     var filesUploaded = 0;
     if (Object.keys(req.files).length === 0) {
         console.log('No files uploaded');
+		res.json({status: 402, data: 'no audio attached'});
     } else {
         var newName = req.files['my-file'].name;
         var filePath = req.files['my-file'].path;
@@ -86,6 +88,7 @@ app.post('/upload-video', uploadVideo, function (req, res) {
     var filesUploaded = 0;
     if (Object.keys(req.files).length === 0) {
         console.log('No files uploaded');
+		res.json({status: 402, data: 'no video attached'});
     } else {
         var newName = req.files['my-file'].name;
         var filePath = req.files['my-file'].path;
@@ -116,6 +119,7 @@ app.post('/upload-file', uploadFile, function (req, res) {
     var filesUploaded = 0;
     if (Object.keys(req.files).length === 0) {
         console.log('No files uploaded');
+		res.json({status: 402, data: 'no file attached'});
     } else {
         var newName = req.files['my-file'].name;
         var filePath = req.files['my-file'].path;
@@ -268,7 +272,7 @@ app.post('/phonenoexists', defaultPath, function (req, res) {
                     jsonObj.contact_isgroup = rows[0].contact_isgroup;
                     jsonObj.contact_privacy_pic = rows[0].contact_privacy_pic;
                     jsonObj.contact_sequence = rows[0].contact_sequence;
-
+					
 
                     res.json({status: 200, phone_no: phoneNo, phone_no_exits: 1, data: jsonObj});
 

@@ -1,3 +1,5 @@
+/* global require, process */
+
 var express = require('express');
 var app = express();
 var server = require('http').createServer(app).listen(1234);
@@ -41,23 +43,23 @@ process.on('SIGINT', function () {
 });
 
 
-//var pool = mysql.createPool({
-//    connectionLimit: 100, //important
-//    host: 'localhost',
-//    user: 'pingova',
-//    password: 'pNUNsGV8KRhPpEfM',
-//    database: 'pingova',
-//    debug: false
-//});
-
 var pool = mysql.createPool({
     connectionLimit: 100, //important
     host: 'localhost',
-    user: 'root',
-    password: 'root',
+    user: 'pingova',
+    password: 'pNUNsGV8KRhPpEfM',
     database: 'pingova',
     debug: false
 });
+
+//var pool = mysql.createPool({
+//    connectionLimit: 100, //important
+//    host: 'localhost',
+//    user: 'root',
+//    password: 'root',
+//    database: 'pingova',
+//    debug: false
+//});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -262,7 +264,6 @@ io.sockets.on('connection', function (client) {
                             });
                         }
                     }
-
                     var messagedata = jsonMsg.msg_data;
                     console.log(typeof messagedata);
                     if ((typeof messagedata) === "object") {
@@ -377,7 +378,6 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-
             connection.query(strQuery, function (err, rows) {
                 connection.release();
                 if (!err)
@@ -519,7 +519,7 @@ io.sockets.on('connection', function (client) {
                                                     "msg_status": item.msg_status
                                                 });
                                             }
-                                            else if (item.type === 3) {//group addition notification
+                                            else if (item.type === 3) {//group creation notification
 
                                                 messagearray.message.push({
                                                     "type": 3,
@@ -637,7 +637,6 @@ io.sockets.on('connection', function (client) {
                                                     "user_data": jsonmsg_data
                                                 });
                                             }
-
                                             else if (item.type === 9) {//member accepted notification to all
                                                 var jsonmsg_data = JSON.parse(item.msg_data);
                                                 messagearray.message.push({
@@ -659,18 +658,33 @@ io.sockets.on('connection', function (client) {
                                                     "msg_data": item.msg_data
                                                 });
                                             }
+                                            else if (item.type === 11) {//group addition notification to added member
+
+                                                messagearray.message.push({
+                                                    "type": 11,
+                                                    "userid_to": item.userId_to,
+                                                    "msg_server_id": item.msg_serverid,
+                                                    "msg_data": item.msg_data,
+                                                    "timestamp": item.timestamp
+                                                });
+                                            }
+                                            else if (item.type === 12) {//account deletion notification
+
+                                                messagearray.message.push({
+                                                    "type": 12,
+                                                    "userid_to": item.userId_to,
+                                                    "msg_server_id": item.msg_serverid,
+                                                    "timestamp": item.timestamp
+                                                });
+                                            }
                                         }
                                         callback();
                                     }, function () {
-
-
                                         io.sockets.socket(client.id).emit("pendingmessage", messagearray);
                                         //MessagequeueSchema.remove({_id:{$in:objIds}});
                                         //doc[0].socketId = socketId;
                                         //doc[0].save();
                                         //console.log("socket Id has been updated for user " + userid + "with a new socket Id: " + socketId);
-
-
                                         MessagequeueSchema.find({_id: {$in: objIds}}, function (err, docs) {
                                             docs.forEach(function (doc) {
                                                 doc.remove();
@@ -718,7 +732,6 @@ io.sockets.on('connection', function (client) {
                                     console.log("size of documnet is less that zero " + doc.length);
                                 }
                             }
-
                         });
                     } else//if sequence is changes 
                     {
@@ -730,7 +743,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("getContactDetails", function (msg) {
-         var user_data = {};
+        var user_data = {};
         //var contact = JSON.parse(msg);
         console.log(" user id get from local user  " + msg);
         var Query = "SELECT * FROM users WHERE userid=" + msg;
@@ -743,8 +756,8 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 if (!err)
                 {
-                   
-                   if(rows.length>0){
+
+                    if (rows.length > 0) {
                         user_data.user_id = rows[0].userid;
                         user_data.pin_no = rows[0].pin_no;
                         user_data.contact_displayname = rows[0].contact_displayname;
@@ -753,9 +766,9 @@ io.sockets.on('connection', function (client) {
                         user_data.contact_profilepic = rows[0].contact_profilepic;
                         user_data.contact_profilepicthumb = rows[0].contact_profilepicthumb;
                         user_data.contact_isnovisible = rows[0].contact_isnovisible;
-                        user_data.contact_isgroup = rows[0].contact_isgroup;                        
+                        user_data.contact_isgroup = rows[0].contact_isgroup;
                     }
-                    
+
                     io.sockets.socket(client.id).emit("getContactDetailsResponse", user_data);
                 }
             });
@@ -837,7 +850,6 @@ io.sockets.on('connection', function (client) {
                         io.sockets.socket(client.id).emit("searchUserPinResponse", rows);
                     }
                 }
-
             });
         });
     });
@@ -872,8 +884,6 @@ io.sockets.on('connection', function (client) {
                         myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
                         io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
                     }
-
-
                 } else {
 
                     io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
@@ -963,7 +973,6 @@ io.sockets.on('connection', function (client) {
                 } else {
                     console.log(rows);
                 }
-
             });
         });
     });
@@ -1120,7 +1129,7 @@ io.sockets.on('connection', function (client) {
                     if (groupDataRow.length > 0)
                     {
                         //adding  Group Created Time
-                        var addGroupCreatedTime = "UPDATE users SET created_time =" + receivedTime + " where userid =" + groupId;
+                        var addGroupCreatedTime = "UPDATE users SET created_time =" + receivedTime + ", created_by =" + userId + " where userid =" + groupId;
                         console.log(addGroupCreatedTime);
                         connection.query(addGroupCreatedTime);
                         //fetching group members data
@@ -1173,11 +1182,19 @@ io.sockets.on('connection', function (client) {
                                                             console.log(err);
 //                                                        throw err;
                                                         } else {
-                                                            var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","group_timestamp":"' + receivedTime + '","moderator_id":"' + userId + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                            var typeCheck;
+                                                            var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","group_timestamp":"' + receivedTime + '","group_created_by":"' + userId + '","moderator_id":"' + userId + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
                                                             if (io.sockets.sockets[groupmenbersocketId] !== undefined)
                                                             {
                                                                 console.log("**socket id is valid for sending message user**");
-                                                                io.sockets.socket(groupmenbersocketId).emit("groupCreation", groupCreationData);
+                                                                if ("" + user === userId) {
+                                                                    typeCheck = 3;
+                                                                    io.sockets.socket(groupmenbersocketId).emit("groupCreation", groupCreationData);
+                                                                }
+                                                                else {
+                                                                    typeCheck = 11;
+                                                                    io.sockets.socket(groupmenbersocketId).emit("groupAddition", groupCreationData);
+                                                                }
                                                             }
                                                             else {
                                                                 if ((typeof groupCreationData) === "object")
@@ -1185,7 +1202,7 @@ io.sockets.on('connection', function (client) {
                                                                     groupCreationData = JSON.stringify(groupCreationData);
                                                                 }
                                                                 var newqueuemessage = new MessagequeueSchema({
-                                                                    type: 3,
+                                                                    type: typeCheck,
                                                                     userId_to: user,
                                                                     userId_from: groupId,
                                                                     msg_data: groupCreationData,
@@ -1274,12 +1291,9 @@ io.sockets.on('connection', function (client) {
                             }
                             callback();
                         }, function () {
-
-
                         });
                     }
                 }
-
             });
         });
     });
@@ -1445,6 +1459,8 @@ io.sockets.on('connection', function (client) {
                                         group_data.group_name = groupinfoeach.contact_displayname;
                                         group_data.group_thumb_image = groupinfoeach.contact_profilepicthumb;
                                         group_data.group_image = groupinfoeach.contact_profilepic;
+                                        group_data.group_timestamp = groupinfoeach.created_time;
+                                        group_data.group_created_by = groupinfoeach.created_by;
 
                                         async.forEachSeries(rows, function (item, callback_2)
                                         {
@@ -1468,8 +1484,6 @@ io.sockets.on('connection', function (client) {
                                     }
                                 }
                             });
-
-
                         }, function () {
 
                             group_full_data.group_full_data = group_full_info;
@@ -1478,9 +1492,7 @@ io.sockets.on('connection', function (client) {
                             io.sockets.socket(client.id).emit("searchGroupResponse", group_full_data);
                         });
                     }
-
                 }
-
             });
         });
     });
@@ -1596,7 +1608,6 @@ io.sockets.on('connection', function (client) {
                                                                     console.log("New message  added in queue !");
                                                                 }
                                                             });
-
                                                         }
                                                     }
                                                 }
@@ -1621,7 +1632,6 @@ io.sockets.on('connection', function (client) {
                                         });
                                     }
                                 }
-
                             });
                         }
                     });
@@ -1661,7 +1671,6 @@ io.sockets.on('connection', function (client) {
                         jsonUserData.contact_gender = userinfo[0].contact_gender;
                         jsonUserData.contact_profilepic = userinfo[0].contact_profilepic;
                         jsonUserData.contact_profilepicthumb = userinfo[0].contact_profilepicthumb;
-
 
                         var admininfoQuery = "Select * FROM groupusers WHERE group_id=" + groupId + " and is_moderator=1"; //query for matching groupid and moderatori
                         console.log(admininfoQuery);
@@ -1723,7 +1732,6 @@ io.sockets.on('connection', function (client) {
                                                                 }
                                                             });
                                                         }
-
                                                     }
                                                 }
                                             });
@@ -1804,7 +1812,6 @@ io.sockets.on('connection', function (client) {
                                         } else {
                                             //querying DB to get full details of member of that group to notify them
 
-
                                             console.log(groupinfo);
                                             if (groupinfo.length > 0) {
 
@@ -1847,14 +1854,12 @@ io.sockets.on('connection', function (client) {
                                                                             console.log("New message  added in queue !");
                                                                         }
                                                                     });
-
                                                                 }
                                                             }
                                                         }
                                                     });
                                                     callback();
                                                 }, function () {
-
 
                                                 });
                                             }
@@ -1928,10 +1933,8 @@ io.sockets.on('connection', function (client) {
                                                 jsonUserData.contact_gender = userData[0].contact_gender;
                                                 jsonUserData.contact_profilepic = userData[0].contact_profilepic;
                                                 jsonUserData.contact_profilepicthumb = userData[0].contact_profilepicthumb;
-
                                             }
                                         }
-
                                     });
 
                                     //querying DB to get full details of member of that group to notify them
@@ -2004,13 +2007,12 @@ io.sockets.on('connection', function (client) {
                                                                 }
                                                             }
                                                         });
-
                                                     }
                                                     callback();
                                                 }, function () {
                                                     console.log("in function========================");
                                                     var groupmembesdata = JSON.stringify(group_members_list);
-                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                    var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","group_created_by":"' + moderatorinfo[0].created_by + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
 
                                                     ///notifying the added member
                                                     UserSchema.find({
@@ -2030,11 +2032,11 @@ io.sockets.on('connection', function (client) {
                                                                     // jsonMessage.group_id = groupId;
                                                                     // jsonMessage.user_data = jsonUserData;
                                                                     // var jsonString = JSON.stringify(jsonMessage);
-                                                                    io.sockets.socket(socketid).emit("groupCreation", groupCreationData);
+                                                                    io.sockets.socket(socketid).emit("groupAddition", groupCreationData);
                                                                 } else//When user is not connected to node server
                                                                 {
                                                                     var newqueuemessage = new MessagequeueSchema({
-                                                                        type: 3,
+                                                                        type: 11,
                                                                         userId_to: user,
                                                                         userId_from: groupId,
                                                                         msg_data: groupCreationData,
@@ -2048,13 +2050,10 @@ io.sockets.on('connection', function (client) {
                                                                             console.log("New message  added in queue !");
                                                                         }
                                                                     });
-
                                                                 }
                                                             }
                                                         }
                                                     });
-
-
                                                 });
                                             }
                                         }
@@ -2130,10 +2129,8 @@ io.sockets.on('connection', function (client) {
                                                     jsonUserData.contact_gender = userData[0].contact_gender;
                                                     jsonUserData.contact_profilepic = userData[0].contact_profilepic;
                                                     jsonUserData.contact_profilepicthumb = userData[0].contact_profilepicthumb;
-
                                                 }
                                             }
-
                                         });
 
                                         //querying DB to get full details of member of that group to notify them
@@ -2199,7 +2196,6 @@ io.sockets.on('connection', function (client) {
                                                                                     console.log("New message  added in queue !");
                                                                                 }
                                                                             });
-
                                                                         }
                                                                     }
                                                                 }
@@ -2210,7 +2206,7 @@ io.sockets.on('connection', function (client) {
                                                     }, function () {
                                                         console.log("in function========================");
                                                         var groupmembesdata = JSON.stringify(group_members_list);
-                                                        var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
+                                                        var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","group_created_by":"' + moderatorinfo[0].created_by + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
 
                                                         ///notifying the added member
                                                         UserSchema.find({
@@ -2249,13 +2245,10 @@ io.sockets.on('connection', function (client) {
                                                                                 console.log("New message  added in queue !");
                                                                             }
                                                                         });
-
                                                                     }
                                                                 }
                                                             }
                                                         });
-
-
                                                     });
                                                 }
                                             }
@@ -2301,12 +2294,10 @@ io.sockets.on('connection', function (client) {
                                                                 console.log("New message  added in queue !");
                                                             }
                                                         });
-
                                                     }
                                                 }
                                             }
                                         });
-
                                     }
                                 }
                             });
@@ -2499,6 +2490,307 @@ io.sockets.on('connection', function (client) {
                     }
                     io.sockets.socket(client.id).emit("updateDisplayNameResponse", myarr);
                 }
+            });
+        });
+    });
+
+    //updating display name
+    client.on("checkUserData", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                connection.release();
+                return;
+            }
+            //searching if the user was in any group and its data
+            var strQuery = "SELECT * FROM groupusers,users WHERE group_id=userid and user_id= " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, groupinfo) {
+                if (err) {
+                    console.log("err:::" + err);
+                    throw err;
+                } else {
+                    console.log("groupinfo:::" + groupinfo);
+                    if (groupinfo.length > 0) {
+                        var group_full_data = {};
+                        var group_full_info = [];
+                        async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
+                        {
+                            var strQuery = "SELECT * FROM groupusers,users WHERE group_id=" + groupinfoeach.userid + " and user_id = userid and request_status = 1"; //getting whole data of group members
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, rows) {
+                                if (err) {
+                                    throw err;
+                                } else {
+                                    if (rows.length > 0) {
+                                        var group_data = {};
+                                        var group_members = [];
+                                        group_data.group_id = groupinfoeach.userid;
+                                        group_data.group_pin = groupinfoeach.pin_no;
+                                        group_data.group_name = groupinfoeach.contact_displayname;
+                                        group_data.group_thumb_image = groupinfoeach.contact_profilepicthumb;
+                                        group_data.group_image = groupinfoeach.contact_profilepic;
+                                        group_data.group_timestamp = groupinfoeach.created_time;
+                                        group_data.group_created_by = groupinfoeach.created_by;
+
+                                        async.forEachSeries(rows, function (item, callback_2)
+                                        {
+                                            if ("" + item.user_id !== user) {
+                                                var group_members_data = {};
+                                                group_members_data.user_id = item.user_id;
+                                                group_members_data.is_moderator = item.is_moderator;
+                                                group_members_data.pin_no = item.pin_no;
+                                                group_members_data.contact_displayname = item.contact_displayname;
+                                                group_members_data.contact_status = item.contact_status;
+                                                group_members_data.contact_gender = item.contact_gender;
+                                                group_members_data.contact_profilepic = item.contact_profilepic;
+                                                group_members_data.contact_profilepicthumb = item.contact_profilepicthumb;
+                                                group_members.push(group_members_data);
+                                            }
+                                            callback_2();
+                                        }, function () {
+                                            group_data.group_members = group_members;
+                                            group_full_info.push(group_data);
+                                            callback_1();
+                                        });
+                                    }
+                                }
+                            });
+                        }, function () {
+                            group_full_data.group_full_data = group_full_info;
+                            console.log(group_full_data);
+//                          group_data.group_members = group_members;
+                            io.sockets.socket(client.id).emit("checkUserDataResponse", group_full_data);
+                        });
+                    }
+                }
+            });
+        });
+    });
+
+    client.on("deleteAccount", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var moderatorId;
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                connection.release();
+                return;
+            }
+            //searching if the user was in any group and its data
+            var strQuery = "SELECT * FROM groupusers,users WHERE group_id=userid and user_id= " + user;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, groupinfo) {
+                if (err) {
+                    console.log("err:::" + err);
+                    throw err;
+                } else {
+                    console.log("groupinfo:::" + groupinfo);
+                    if (groupinfo.length > 0) {
+                        var group_full_data = {};
+                        var group_full_info = [];
+                        async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
+                        {
+                            var strQuery = "Select * FROM groupusers WHERE group_id=" + groupinfoeach.group_id + " and is_moderator=1 and request_status = 1";
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, admininfo) {
+                                if (err) {
+                                    console.log(err);
+                                    throw err;
+                                } else {
+                                    //deleting the record 
+                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupinfoeach.group_id + " and user_id=" + user;
+                                    console.log(strQuery);
+                                    connection.query(strQuery, function (err, row) {
+                                        if (err) {
+                                            console.log(err);
+                                            throw err;
+                                        } else {
+                                            var jsonData = {};
+                                            jsonData.group_id = groupinfoeach.group_id;
+                                            jsonData.user_id = user;
+                                            jsonData.timestamp = receivedTime;
+                                            var jsonString = JSON.stringify(jsonData);
+//                                            io.sockets.socket(client.id).emit("leaveGroupNotification", jsonString);
+                                            //querying DB to get full details of member of that group to notify them
+                                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupinfoeach.group_id;
+                                            +" and request_status = 1";
+                                            console.log(strQuery);
+                                            connection.query(strQuery, function (err, groupinfo) {
+                                                if (err) {
+                                                    console.log(err);
+                                                    throw err;
+                                                } else {
+                                                    console.log(groupinfo);
+                                                    if (groupinfo.length > 0) {
+                                                        console.log("moderatorIdmoderatorIdmoderatorId::::" + moderatorId);
+                                                        console.log("admininfo.user_id::::" + admininfo[0].user_id);
+                                                        console.log("userId::::" + user);
+                                                        if ("" + admininfo[0].user_id === user) {
+                                                            //changing the moderator as he is the 1 leaving the group
+                                                            console.log("trueeeeeeeeeeeeee");
+                                                            //randomly selecting a member for admin role
+                                                            var item = groupinfo[Math.floor(Math.random() * groupinfo.length)];
+                                                            moderatorId = item.user_id;
+                                                            console.log("moderatorId:::::::::::" + moderatorId);
+                                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId;
+                                                            console.log(strQuery);
+                                                            connection.query(strQuery, function (err, admininfo) {
+                                                                if (err) {
+                                                                    moderatorId = 1234;
+                                                                    console.log(err);
+                                                                    throw err;
+                                                                } else {
+                                                                }
+                                                            });
+                                                        }
+                                                        else {
+                                                            console.log("falseeeeeeeeeeeeee");
+                                                            moderatorId = admininfo[0].user_id;
+                                                        }
+                                                        async.forEachSeries(groupinfo, function (eachmember, callback)
+                                                        {
+                                                            //to get socket id
+                                                            UserSchema.find({
+                                                                'userId': eachmember.user_id
+                                                            }, function (err, doc) {
+                                                                if (err)
+                                                                {
+                                                                    console.log("error in getting user details");
+                                                                    return err;
+                                                                } else {
+                                                                    if (doc.length > 0) {
+                                                                        var socketid = doc[0].socketId;
+                                                                        console.log("socket id of opponent " + socketid);
+                                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                                        {//user connected to node server
+                                                                            var jsonData = {};
+                                                                            jsonData.group_id = groupinfoeach.group_id;
+                                                                            jsonData.user_id = user;
+                                                                            jsonData.timestamp = receivedTime;
+                                                                            jsonData.msg_data = '{"moderator_id":"' + moderatorId + '"}';
+                                                                            var jsonString = JSON.stringify(jsonData);
+                                                                            io.sockets.socket(socketid).emit("leaveGroupNotification", jsonString);
+                                                                        } else//When user is not connected to node server
+                                                                        {
+                                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                                type: 5,
+                                                                                userId_to: eachmember.user_id,
+                                                                                userId_from: groupinfoeach.group_id,
+                                                                                send_by: user,
+                                                                                timestamp: receivedTime,
+                                                                                msg_data: '{"moderator_id":"' + moderatorId + '"}'
+                                                                            });
+                                                                            newqueuemessage.save(function (err) {
+                                                                                if (err) {
+                                                                                    return err;
+                                                                                } else {
+                                                                                    console.log("New message  added in queue !");
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    }
+                                                                }
+                                                            });
+                                                            callback();
+                                                        }, function () {
+                                                            callback_1();
+                                                        });
+                                                    } else {
+                                                        //incase there are no members left in the group
+                                                        //coding to delete group from user DB
+                                                        var strQuery = "DELETE FROM users WHERE userid=" + groupinfoeach.group_id;
+                                                        console.log(strQuery);
+                                                        connection.query(strQuery, function (err, row) {
+                                                            if (err) {
+                                                                console.log(err);
+                                                                throw err;
+                                                            } else {
+                                                                console.log("group deleted");
+                                                            }
+                                                        });
+                                                    }
+                                                }
+                                            });
+                                        }
+                                    });
+                                }
+                            });
+                        }, function () {
+                            //delete user from users table
+                            var deleteQuery = "DELETE FROM users WHERE userid= " + user;
+                            console.log(deleteQuery);
+                            connection.query(deleteQuery, function (err, deleteinfo) {
+                                if (err) {
+                                    console.log("err:::" + err);
+                                    throw err;
+                                } else {
+                                    if (io.sockets.socket(client.id) !== undefined)
+                                    {
+                                        console.log("**socket id is valid for sending message user**");
+                                        io.sockets.socket(client.id).emit("deleteAccountResponse", '{"status":"200", "user_id":"' + user + '"}');
+                                    } else
+                                    {
+                                        console.log("**socket id is not valid for sending message user**");
+                                        var newqueuemessage = new MessagequeueSchema({
+                                            type: 12,
+                                            userId_to: user,
+                                            msg_serverid: 11,
+                                            timestamp: receivedTime
+                                        });
+                                        newqueuemessage.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New message  added in queue !");
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        //delete user from users table
+                        var deleteQuery = "DELETE FROM users WHERE userid= " + user;
+                        console.log(deleteQuery);
+                        connection.query(deleteQuery, function (err, deleteinfo) {
+                            if (err) {
+                                console.log("err:::" + err);
+                                throw err;
+                            } else {
+                                if (io.sockets.socket(client.id) !== undefined)
+                                {
+                                    console.log("**socket id is valid for sending message user**");
+                                    io.sockets.socket(client.id).emit("deleteAccountResponse", '{"status":"200", "user_id":"' + user + '"}');
+                                } else
+                                {
+                                    console.log("**socket id is not valid for sending message user**");
+                                    var newqueuemessage = new MessagequeueSchema({
+                                        type: 12,
+                                        userId_to: user,
+                                        msg_serverid: 11,
+                                        timestamp: receivedTime
+                                    });
+                                    newqueuemessage.save(function (err) {
+                                        if (err) {
+                                            return err;
+                                        } else {
+                                            console.log("New message  added in queue !");
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+
+                }
+
             });
         });
     });
