@@ -53,7 +53,7 @@ app.post('/upload-image', uploadImage, function (req, res) {
 });
 
 app.post('/upload-audio', uploadAudio, function (req, res) {
-    console.log(req.body)
+    console.log(req.body);
     var filesUploaded = 0;
     if (Object.keys(req.files).length === 0) {
         console.log('No files uploaded');

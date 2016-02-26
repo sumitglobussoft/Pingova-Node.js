@@ -43,23 +43,23 @@ process.on('SIGINT', function () {
 });
 
 
-var pool = mysql.createPool({
-    connectionLimit: 100, //important
-    host: 'localhost',
-    user: 'pingova',
-    password: 'pNUNsGV8KRhPpEfM',
-    database: 'pingova',
-    debug: false
-});
-
 //var pool = mysql.createPool({
 //    connectionLimit: 100, //important
 //    host: 'localhost',
-//    user: 'root',
-//    password: 'root',
+//    user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
 //    database: 'pingova',
 //    debug: false
 //});
+
+var pool = mysql.createPool({
+    connectionLimit: 100, //important
+    host: 'localhost',
+    user: 'root',
+    password: 'root',
+    database: 'pingova',
+    debug: false
+});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -336,7 +336,7 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-            var Query = "SELECT * FROM users WHERE userid=" + jsonMsg.userid;
+            var Query = "SELECT * FROM users WHERE userid=" + jsonMsg.user_id;
             connection.query(Query, function (err, rows)
             {
                 connection.release();
@@ -369,9 +369,9 @@ io.sockets.on('connection', function (client) {
     client.on("checkStatus", function (msg) {
         var jsonMsg1 = JSON.parse(msg);
         var receivedTime = "" + Math.floor(Date.now() / 1000);
-        console.log("@@@@@@@@@@@@@@@" + jsonMsg1.userId);
+        console.log("@@@@@@@@@@@@@@@" + jsonMsg1.user_id);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.sequence);
-        var strQuery = "SELECT * FROM users WHERE userid=" + jsonMsg1.userId;
+        var strQuery = "SELECT * FROM users WHERE userid=" + jsonMsg1.user_id;
         //Getting connection from pool
         pool.getConnection(function (err, connection) {
             if (err) {
@@ -382,155 +382,69 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 if (!err)
                 {
-                    var sequencecheck = rows[0].contact_sequence;
-                    if (sequencecheck === jsonMsg1.sequence)//Checking sequence is ok or not
-                    {
-                        //io.sockets.socket(client.id).emit("checkSequenceResponse", true);
-                        var userid = jsonMsg1.userId;
-                        var socketId = jsonMsg1.socketId;
-                        UserSchema.find({
-                            'userId': userid
-                        }, function (err, doc) {
-                            if (err) {
-                                return err;
-                            } else {
-                                console.log("Length of doc is " + doc.length);
-                                if (doc.length > 0) {
-                                    // if user is present, then update his socket id
-                                    doc[0].socketId = socketId;
-                                    doc[0].save();
-                                    console.log("socket Id has been updated for user " + userid + "with a new socket Id: " + socketId);
-                                    console.log(doc);
-                                } else {
-                                    //we will add a new user here
-                                    var newUser = new UserSchema({
-                                        userId: userid,
-                                        socketId: socketId,
-                                        lastseen: 0
-                                    });
-                                    newUser.save(function (err) {
-                                        if (err) {
-                                            return err;
-                                        } else {
-                                            console.log("New user added !");
-                                        }
-                                    });
-                                }
-                            }
-                        });
-                        //).sort({'timestamp': -1}
-                        MessagequeueSchema.find({
-                            'userId_to': userid
-                        }).sort({'timestamp': 1}).exec(function (err, doc)
+                    if (rows.length > 0) {
+                        var sequencecheck = rows[0].contact_sequence;
+                        if (sequencecheck === jsonMsg1.sequence)//Checking sequence is ok or not
                         {
-                            if (err)
+                            //io.sockets.socket(client.id).emit("checkSequenceResponse", true);
+                            var userid = jsonMsg1.user_id;
+                            var socketId = jsonMsg1.socketId;
+                            UserSchema.find({
+                                'userId': userid
+                            }, function (err, doc) {
+                                if (err) {
+                                    return err;
+                                } else {
+                                    console.log("Length of doc is " + doc.length);
+                                    if (doc.length > 0) {
+                                        // if user is present, then update his socket id
+                                        doc[0].socketId = socketId;
+                                        doc[0].save();
+                                        console.log("socket Id has been updated for user " + userid + "with a new socket Id: " + socketId);
+                                        console.log(doc);
+                                    } else {
+                                        //we will add a new user here
+                                        var newUser = new UserSchema({
+                                            userId: userid,
+                                            socketId: socketId,
+                                            lastseen: 0
+                                        });
+                                        newUser.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New user added !");
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+                            //).sort({'timestamp': -1}
+                            MessagequeueSchema.find({
+                                'userId_to': userid
+                            }).sort({'timestamp': 1}).exec(function (err, doc)
                             {
-                                console.log("ERROR IN GETTING QUEUQ MSG");
-                            } else
-                            {
-                                console.log("count  of queue msg document " + doc.length);
-                                if (doc.length > 0)
+                                if (err)
                                 {
-                                    var messagearray = {
-                                        message: []
-                                    };
-                                    var objIds = [];
-                                    //MessagequeueSchema.remove({_id:{$in:objIds}});
-
-                                    async.forEachSeries(doc, function (item, callback)
+                                    console.log("ERROR IN GETTING QUEUQ MSG");
+                                } else
+                                {
+                                    console.log("count  of queue msg document " + doc.length);
+                                    if (doc.length > 0)
                                     {
-                                        console.log("****************************************");
-                                        console.log(item);
-                                        objIds.push(item._id);
-                                        if (item.type === 1)
-                                        {
-                                            messagearray.message.push({
-                                                "userid_to": item.userId_to,
-                                                "type": item.type,
-                                                "userid_from": item.userId_from,
-                                                "msg_type": item.msg_type,
-                                                "msg_data": item.msg_data,
-                                                "msg_local_id": item.msg_localid,
-                                                "contact_name": item.contact_name,
-                                                "contact_number": item.contact_number,
-                                                "contact_image": item.contact_image,
-                                                "timestamp": item.timestamp,
-                                                "msg_server_id": item.msg_serverid
-                                            });
-                                            var messagestatusarray = {messagestatus: []};
-                                            messagestatusarray.messagestatus.push({
-                                                "userid_to": item.to_send,
-                                                "msg_serverid": 11,
-                                                "msg_local_id": item.msg_localid,
-                                                "msg_status": 2
-                                            });
-                                            var userid_to = item.userId_to;
-                                            var localid = item.msg_localid;
-                                            var useridfrom = item.userId_from;
-                                            // console.log("***************************")
-                                            // console.log(localid);
-                                            //Getting Socket id of user whom we have to send mesage status
-                                            UserSchema.find({
-                                                'userId': item.userId_from
-                                            }, function (err, doc) {
-                                                if (err)
-                                                {
-                                                } else
-                                                {
-                                                    if (doc.length > 0)
-                                                    {
-                                                        var socketid = doc[0].socketId;
-                                                        if (io.sockets.sockets[socketid] !== undefined)
-                                                        {
-                                                            var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '","timestamp":"' + receivedTime + '"}';
-                                                            io.sockets.socket(socketid).emit("messagestatus", myarr);
-                                                        } else
-                                                        {
-                                                            var newqueuemessage = new MessagequeueSchema({
-                                                                type: 2,
-                                                                userId_to: useridfrom,
-                                                                to_send: userid_to,
-                                                                msg_localid: localid,
-                                                                msg_serverid: 11,
-                                                                timestamp: receivedTime,
-                                                                msg_status: 2
-                                                            });
-                                                            newqueuemessage.save(function (err) {
-                                                                if (err) {
-                                                                    return err;
-                                                                } else {
-                                                                    console.log("New message  added in queue !");
-                                                                }
-                                                            });
-                                                        }
-                                                    }
-                                                }
-                                            });
-                                        } else
-                                        {
-                                            if (item.type === 2)//message status
-                                            {
-                                                messagearray.message.push({
-                                                    "type": 2,
-                                                    "userid_to": item.to_send,
-                                                    "msg_local_id": item.msg_localid,
-                                                    "msg_server_id": item.msg_serverid,
-                                                    "timestamp": item.timestamp,
-                                                    "msg_status": item.msg_status
-                                                });
-                                            }
-                                            else if (item.type === 3) {//group creation notification
+                                        var messagearray = {
+                                            message: []
+                                        };
+                                        var objIds = [];
+                                        //MessagequeueSchema.remove({_id:{$in:objIds}});
 
-                                                messagearray.message.push({
-                                                    "type": 3,
-                                                    "userid_to": item.userId_to,
-                                                    "msg_server_id": item.msg_serverid,
-                                                    "msg_data": item.msg_data,
-                                                    "timestamp": item.timestamp
-                                                });
-                                            }
-                                            /***************************************/
-                                            else if (item.type === 4) {//group messages 
+                                        async.forEachSeries(doc, function (item, callback)
+                                        {
+                                            console.log("****************************************");
+                                            console.log(item);
+                                            objIds.push(item._id);
+                                            if (item.type === 1)
+                                            {
                                                 messagearray.message.push({
                                                     "userid_to": item.userId_to,
                                                     "type": item.type,
@@ -541,10 +455,97 @@ io.sockets.on('connection', function (client) {
                                                     "contact_name": item.contact_name,
                                                     "contact_number": item.contact_number,
                                                     "contact_image": item.contact_image,
-                                                    "sentby_user_id": item.send_by,
                                                     "timestamp": item.timestamp,
                                                     "msg_server_id": item.msg_serverid
                                                 });
+                                                var messagestatusarray = {messagestatus: []};
+                                                messagestatusarray.messagestatus.push({
+                                                    "userid_to": item.to_send,
+                                                    "msg_serverid": 11,
+                                                    "msg_local_id": item.msg_localid,
+                                                    "msg_status": 2
+                                                });
+                                                var userid_to = item.userId_to;
+                                                var localid = item.msg_localid;
+                                                var useridfrom = item.userId_from;
+                                                // console.log("***************************")
+                                                // console.log(localid);
+                                                //Getting Socket id of user whom we have to send mesage status
+                                                UserSchema.find({
+                                                    'userId': item.userId_from
+                                                }, function (err, doc) {
+                                                    if (err)
+                                                    {
+                                                    } else
+                                                    {
+                                                        if (doc.length > 0)
+                                                        {
+                                                            var socketid = doc[0].socketId;
+                                                            if (io.sockets.sockets[socketid] !== undefined)
+                                                            {
+                                                                var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '","timestamp":"' + receivedTime + '"}';
+                                                                io.sockets.socket(socketid).emit("messagestatus", myarr);
+                                                            } else
+                                                            {
+                                                                var newqueuemessage = new MessagequeueSchema({
+                                                                    type: 2,
+                                                                    userId_to: useridfrom,
+                                                                    to_send: userid_to,
+                                                                    msg_localid: localid,
+                                                                    msg_serverid: 11,
+                                                                    timestamp: receivedTime,
+                                                                    msg_status: 2
+                                                                });
+                                                                newqueuemessage.save(function (err) {
+                                                                    if (err) {
+                                                                        return err;
+                                                                    } else {
+                                                                        console.log("New message  added in queue !");
+                                                                    }
+                                                                });
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                            } else
+                                            {
+                                                if (item.type === 2)//message status
+                                                {
+                                                    messagearray.message.push({
+                                                        "type": 2,
+                                                        "userid_to": item.to_send,
+                                                        "msg_local_id": item.msg_localid,
+                                                        "msg_server_id": item.msg_serverid,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_status": item.msg_status
+                                                    });
+                                                }
+                                                else if (item.type === 3) {//group creation notification
+
+                                                    messagearray.message.push({
+                                                        "type": 3,
+                                                        "userid_to": item.userId_to,
+                                                        "msg_server_id": item.msg_serverid,
+                                                        "msg_data": item.msg_data,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
+                                                /***************************************/
+                                                else if (item.type === 4) {//group messages 
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "userid_from": item.userId_from,
+                                                        "msg_type": item.msg_type,
+                                                        "msg_data": item.msg_data,
+                                                        "msg_local_id": item.msg_localid,
+                                                        "contact_name": item.contact_name,
+                                                        "contact_number": item.contact_number,
+                                                        "contact_image": item.contact_image,
+                                                        "sentby_user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_server_id": item.msg_serverid
+                                                    });
 //                                            var messagestatusarray = {messagestatus: []};
 //                                            messagestatusarray.messagestatus.push({
 //                                                "userid_to": item.to_send,
@@ -552,189 +553,192 @@ io.sockets.on('connection', function (client) {
 //                                                "msg_local_id": item.msg_localid,
 //                                                "msg_status": 2
 //                                            });
-                                                /*notification status
-                                                 var userid_to = item.userId_to;
-                                                 var localid = item.msg_localid;
-                                                 var useridfrom = item.userId_from;
-                                                 // console.log("***************************")
-                                                 // console.log(localid);
-                                                 //Getting Socket id of user whom we have to send mesage status
-                                                 UserSchema.find({
-                                                 'userId': item.send_by
-                                                 }, function (err, doc) {
-                                                 if (err)
-                                                 {
-                                                 } else
-                                                 {
-                                                 if (doc.length > 0)
-                                                 {
-                                                 var socketid = doc[0].socketId;
-                                                 if (io.sockets.sockets[socketid] !== undefined)
-                                                 {
-                                                 var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '"}';
-                                                 io.sockets.socket(socketid).emit("messagestatus", myarr);
-                                                 } else
-                                                 {
-                                                 var newqueuemessage = new MessagequeueSchema({
-                                                 type: 2,
-                                                 userId_to: item.send_by,
-                                                 to_send: userid_to,
-                                                 msg_localid: localid,
-                                                 msg_serverid: 11,
-                                                 msg_status: 2
-                                                 });
-                                                 newqueuemessage.save(function (err) {
-                                                 if (err) {
-                                                 return err;
-                                                 } else {
-                                                 console.log("New message  added in queue !");
-                                                 }
-                                                 });
-                                                 }
-                                                 }
-                                                 }
-                                                 });  notification*/
-                                            }
-                                            else if (item.type === 5) { //leave group
-                                                messagearray.message.push({
-                                                    "userid_to": item.userId_to,
-                                                    "type": item.type,
-                                                    "userid_from": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "msg_data": item.msg_data
-                                                });
-                                            }
-                                            else if (item.type === 6) {//remove members from group
-                                                messagearray.message.push({
-                                                    "userid_to": item.userId_to,
-                                                    "type": item.type,
-                                                    "group_id": item.userId_from,
-                                                    "moderator_id": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "user_id": item.msg_data
-                                                });
-                                            }
-                                            else if (item.type === 7) {//add members to group
-                                                var jsonmsg_data = JSON.parse(item.msg_data);
-                                                messagearray.message.push({
-                                                    "userid_to": item.userId_to,
-                                                    "type": item.type,
-                                                    "group_id": item.userId_from,
-                                                    "moderatorId": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "user_data": jsonmsg_data
-                                                });
-                                            }
-                                            else if (item.type === 8) {//join group request
-                                                var jsonmsg_data = JSON.parse(item.msg_data);
-                                                messagearray.message.push({
-                                                    "moderatorId": item.userId_to,
-                                                    "type": item.type,
-                                                    "groupId": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "user_data": jsonmsg_data
-                                                });
-                                            }
-                                            else if (item.type === 9) {//member accepted notification to all
-                                                var jsonmsg_data = JSON.parse(item.msg_data);
-                                                messagearray.message.push({
-                                                    "userid_to": item.userId_to,
-                                                    "type": item.type,
-                                                    "group_id": item.userId_from,
-                                                    "moderator_id": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "user_data": jsonmsg_data
-                                                });
-                                            }
-                                            else if (item.type === 10) {//accepted request notification to requested user
-                                                messagearray.message.push({
-                                                    "userid_to": item.userId_to,
-                                                    "type": item.type,
-                                                    "userid_from": item.userId_from,
-                                                    "sentby_user_id": item.send_by,
-                                                    "timestamp": item.timestamp,
-                                                    "msg_data": item.msg_data
-                                                });
-                                            }
-                                            else if (item.type === 11) {//group addition notification to added member
+                                                    /*notification status
+                                                     var userid_to = item.userId_to;
+                                                     var localid = item.msg_localid;
+                                                     var useridfrom = item.userId_from;
+                                                     // console.log("***************************")
+                                                     // console.log(localid);
+                                                     //Getting Socket id of user whom we have to send mesage status
+                                                     UserSchema.find({
+                                                     'userId': item.send_by
+                                                     }, function (err, doc) {
+                                                     if (err)
+                                                     {
+                                                     } else
+                                                     {
+                                                     if (doc.length > 0)
+                                                     {
+                                                     var socketid = doc[0].socketId;
+                                                     if (io.sockets.sockets[socketid] !== undefined)
+                                                     {
+                                                     var myarr = '{"message_local_id":"' + localid + '","status":"2","userid_to":"' + userid_to + '"}';
+                                                     io.sockets.socket(socketid).emit("messagestatus", myarr);
+                                                     } else
+                                                     {
+                                                     var newqueuemessage = new MessagequeueSchema({
+                                                     type: 2,
+                                                     userId_to: item.send_by,
+                                                     to_send: userid_to,
+                                                     msg_localid: localid,
+                                                     msg_serverid: 11,
+                                                     msg_status: 2
+                                                     });
+                                                     newqueuemessage.save(function (err) {
+                                                     if (err) {
+                                                     return err;
+                                                     } else {
+                                                     console.log("New message  added in queue !");
+                                                     }
+                                                     });
+                                                     }
+                                                     }
+                                                     }
+                                                     });  notification*/
+                                                }
+                                                else if (item.type === 5) { //leave group
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "userid_from": item.userId_from,
+                                                        "sentby_user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_data": item.msg_data
+                                                    });
+                                                }
+                                                else if (item.type === 6) {//remove members from group
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "group_id": item.userId_from,
+                                                        "moderator_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "user_id": item.msg_data
+                                                    });
+                                                }
+                                                else if (item.type === 7) {//add members to group
+                                                    var jsonmsg_data = JSON.parse(item.msg_data);
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "group_id": item.userId_from,
+                                                        "moderatorId": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "user_data": jsonmsg_data
+                                                    });
+                                                }
+                                                else if (item.type === 8) {//join group request
+                                                    var jsonmsg_data = JSON.parse(item.msg_data);
+                                                    messagearray.message.push({
+                                                        "moderatorId": item.userId_to,
+                                                        "type": item.type,
+                                                        "groupId": item.userId_from,
+                                                        "sentby_user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "user_data": jsonmsg_data
+                                                    });
+                                                }
+                                                else if (item.type === 9) {//member accepted notification to all
+                                                    var jsonmsg_data = JSON.parse(item.msg_data);
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "group_id": item.userId_from,
+                                                        "moderator_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "user_data": jsonmsg_data
+                                                    });
+                                                }
+                                                else if (item.type === 10) {//accepted request notification to requested user
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "userid_from": item.userId_from,
+                                                        "sentby_user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_data": item.msg_data
+                                                    });
+                                                }
+                                                else if (item.type === 11) {//group addition notification to added member
 
-                                                messagearray.message.push({
-                                                    "type": 11,
-                                                    "userid_to": item.userId_to,
-                                                    "msg_server_id": item.msg_serverid,
-                                                    "msg_data": item.msg_data,
-                                                    "timestamp": item.timestamp
-                                                });
-                                            }
-                                            else if (item.type === 12) {//account deletion notification
+                                                    messagearray.message.push({
+                                                        "type": 11,
+                                                        "userid_to": item.userId_to,
+                                                        "msg_server_id": item.msg_serverid,
+                                                        "msg_data": item.msg_data,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
+                                                else if (item.type === 12) {//account deletion notification
 
-                                                messagearray.message.push({
-                                                    "type": 12,
-                                                    "userid_to": item.userId_to,
-                                                    "msg_server_id": item.msg_serverid,
-                                                    "timestamp": item.timestamp
-                                                });
+                                                    messagearray.message.push({
+                                                        "type": 12,
+                                                        "userid_to": item.userId_to,
+                                                        "msg_server_id": item.msg_serverid,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
                                             }
-                                        }
-                                        callback();
-                                    }, function () {
-                                        io.sockets.socket(client.id).emit("pendingmessage", messagearray);
-                                        //MessagequeueSchema.remove({_id:{$in:objIds}});
-                                        //doc[0].socketId = socketId;
-                                        //doc[0].save();
-                                        //console.log("socket Id has been updated for user " + userid + "with a new socket Id: " + socketId);
-                                        MessagequeueSchema.find({_id: {$in: objIds}}, function (err, docs) {
-                                            docs.forEach(function (doc) {
-                                                doc.remove();
+                                            callback();
+                                        }, function () {
+                                            io.sockets.socket(client.id).emit("pendingmessage", messagearray);
+                                            //MessagequeueSchema.remove({_id:{$in:objIds}});
+                                            //doc[0].socketId = socketId;
+                                            //doc[0].save();
+                                            //console.log("socket Id has been updated for user " + userid + "with a new socket Id: " + socketId);
+                                            MessagequeueSchema.find({_id: {$in: objIds}}, function (err, docs) {
+                                                docs.forEach(function (doc) {
+                                                    doc.remove();
+                                                });
                                             });
                                         });
-                                    });
-                                } else
-                                {
-                                    console.log("size of documnet is less that zero " + doc.length);
-                                }
-                            }
-
-                        });
-                        //friend requests
-                        friendRequestSchema.find({
-                            'status': 0,
-                            'friendUserId': userid
-                        }, function (err, doc)
-                        {
-                            if (err)
-                            {
-                                console.log("ERROR IN GETTING pendingfriendrequest");
-                            } else
-                            {
-                                console.log("count  of queue msg document " + doc.length);
-                                if (doc.length > 0)
-                                {
-                                    var friendrequestarray = {
-                                        friendrequest: []
-                                    };
-                                    async.forEachSeries(doc, function (item, callback)
+                                    } else
                                     {
-                                        console.log("****************************************");
-                                        friendrequestarray.friendrequest.push({
-                                            "userid_to": item.friendUserId,
-                                            "userid_from": item.userId,
-                                            "status": item.status
-                                        });
-                                        callback();
-                                    }, function () {
-                                        io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
-                                    });
+                                        console.log("size of documnet is less that zero " + doc.length);
+                                    }
+                                }
+
+                            });
+                            //friend requests
+                            friendRequestSchema.find({
+                                'status': 0,
+                                'friendUserId': userid
+                            }, function (err, doc)
+                            {
+                                if (err)
+                                {
+                                    console.log("ERROR IN GETTING pendingfriendrequest");
                                 } else
                                 {
-                                    console.log("size of documnet is less that zero " + doc.length);
+                                    console.log("count  of queue msg document " + doc.length);
+                                    if (doc.length > 0)
+                                    {
+                                        var friendrequestarray = {
+                                            friendrequest: []
+                                        };
+                                        async.forEachSeries(doc, function (item, callback)
+                                        {
+                                            console.log("****************************************");
+                                            friendrequestarray.friendrequest.push({
+                                                "userid_to": item.friendUserId,
+                                                "userid_from": item.userId,
+                                                "status": item.status
+                                            });
+                                            callback();
+                                        }, function () {
+                                            io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
+                                        });
+                                    } else
+                                    {
+                                        console.log("size of documnet is less that zero " + doc.length);
+                                    }
                                 }
-                            }
-                        });
-                    } else//if sequence is changes 
-                    {
+                            });
+                        } else//if sequence is changes 
+                        {
+                            io.sockets.socket(client.id).emit("SequenceCheck", false);
+                        }
+                    } else {
                         io.sockets.socket(client.id).emit("SequenceCheck", false);
                     }
                 }
@@ -1183,18 +1187,21 @@ io.sockets.on('connection', function (client) {
 //                                                        throw err;
                                                         } else {
                                                             var typeCheck;
+                                                            var eventname;
+                                                            if ("" + user === userId) {
+                                                                typeCheck = 3;
+                                                                eventname = "groupCreation";
+                                                            } else {
+                                                                typeCheck = 11;
+                                                                eventname = "groupAddition";
+                                                            }
+
                                                             var groupCreationData = '{"group_name":"' + groupDataRow[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + groupDataRow[0].pin_no + '","group_profilepic":"' + groupDataRow[0].contact_profilepic + '","group_profilepicthumb":"' + groupDataRow[0].contact_profilepicthumb + '","group_isvisible":"' + groupDataRow[0].contact_isnovisible + '","group_timestamp":"' + receivedTime + '","group_created_by":"' + userId + '","moderator_id":"' + userId + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
                                                             if (io.sockets.sockets[groupmenbersocketId] !== undefined)
                                                             {
                                                                 console.log("**socket id is valid for sending message user**");
-                                                                if ("" + user === userId) {
-                                                                    typeCheck = 3;
-                                                                    io.sockets.socket(groupmenbersocketId).emit("groupCreation", groupCreationData);
-                                                                }
-                                                                else {
-                                                                    typeCheck = 11;
-                                                                    io.sockets.socket(groupmenbersocketId).emit("groupAddition", groupCreationData);
-                                                                }
+                                                                io.sockets.socket(groupmenbersocketId).emit(eventname, groupCreationData);
+
                                                             }
                                                             else {
                                                                 if ((typeof groupCreationData) === "object")
@@ -2571,6 +2578,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+    //deleting apingova account
     client.on("deleteAccount", function (msg) {
         var receivedTime = Math.floor(Date.now() / 1000);
         var jsonMsg = JSON.parse(msg);
@@ -2788,9 +2796,7 @@ io.sockets.on('connection', function (client) {
                             }
                         });
                     }
-
                 }
-
             });
         });
     });
