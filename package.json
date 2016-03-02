@@ -9,9 +9,11 @@
   "dependencies": {
     "async": "^1.5.0",
     "binary": "^0.3.0",
+    "blueimp-file-upload-expressjs": "arvindr21/blueimp-file-upload-expressjs",
     "body-parser": "^1.14.2",
     "express": "3.4.8",
     "multer": "^1.0.6",
+    "thumbnails-webvtt": "0.0.4",
     "validator": "^4.5.1"
   }
 }

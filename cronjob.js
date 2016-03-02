@@ -1,4 +1,4 @@
-/* global require */
+/* global require, __dirname */
 
 var CronJob = require('cron').CronJob;
 var con = require('./DBoperations.js');
@@ -27,20 +27,30 @@ var deleteMedia = new CronJob({
             }
             else {
                 var filePath;
+                var fullfilePath;
+                var fullfileThumbPath;
                 async.forEachSeries(rows, function (item, callback)
                 {
+                    fullfilePath = __dirname + item.path;
+                    fullfileThumbPath = __dirname + item.path_thumb;
                     filePath = item.path;
-                    fs.unlink(filePath, function (err) {
+                    fs.unlink(fullfilePath, function (err) {
                         if (err) {
-                            console.log("error in file unlink" + err);
+                            console.log("error in fullfilePath unlink" + err);
                         } else {
-                            var strQuery = "DELETE FROM media WHERE path = '" + filePath + "'";
-                            con.query(strQuery, function (err, rows) {
+                            fs.unlink(fullfileThumbPath, function (err) {
                                 if (err) {
-                                    console.log("error in deleting" + err);
-                                }
-                                else {
-                                    console.log("successfully deleted from DB");
+                                    console.log("error in fullfileThumbPath unlink" + err);
+                                } else {
+                                    var strQuery = "DELETE FROM media WHERE path = '" + filePath + "'";
+                                    con.query(strQuery, function (err, rows) {
+                                        if (err) {
+                                            console.log("error in deleting" + err);
+                                        }
+                                        else {
+                                            console.log("successfully deleted from DB");
+                                        }
+                                    });
                                 }
                             });
                         }
