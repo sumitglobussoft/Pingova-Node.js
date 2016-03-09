@@ -2,8 +2,9 @@
 
 var express = require('express');
 var bodyParser = require('body-parser');
-
+var math = require('mathjs');
 var app = express();
+var async = require('async');
 app.use(bodyParser.json());
 //app.use(express.urlencoded());
 app.use(bodyParser.urlencoded({// to support URL-encoded bodies
@@ -14,7 +15,7 @@ var con = require('./DBoperations.js');
 
 var thumbgen = require('thumbnails-webvtt');
 var uploadeddir = __dirname + '/private/uploaded/files';
-var options = {
+var options1 = {
     tmpDir: __dirname + '/private/uploaded/tmp',
     uploadDir: __dirname + '/private/uploaded/files',
     uploadUrl: '/uploaded/files/',
@@ -80,13 +81,11 @@ var options2 = {
     }
 };
 
-// init the uploader
-var uploader = require('blueimp-file-upload-expressjs')(options);
-
-// init the uploader
-var uploader2 = require('blueimp-file-upload-expressjs')(options2);
+// inti the library
+var libRequried = require('blueimp-file-upload-expressjs');
 
 app.get('/upload', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.get(req, res, function (err, obj) {
         if (!err) {
             res.send(JSON.stringify(obj));
@@ -95,6 +94,7 @@ app.get('/upload', function (req, res) {
 });
 
 app.post('/upload-image', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.post(req, res, function (error, obj, redirect) {
         if (!error)
         {
@@ -112,31 +112,31 @@ app.post('/upload-image', function (req, res) {
             console.log("thumbnailUrl::" + thumbnailUrl);
 
 
-            var imgThumb = uploadeddir + '/thumbnail/' + obj.files[0].name;
-            console.log("imgThumb::" + imgThumb);
-            var fs = require("fs");
-            fs.readFile(imgThumb, function (err, data) {
-                if (err)
-                    throw err;
-                // Encode to base64
-                var encodedImage = new Buffer(data, 'binary').toString('base64');
-                // console.log(encodedImage);
-                // Decode from base64
+            //     var imgThumb = uploadeddir + '/thumbnail/' + obj.files[0].name;
+            //    console.log("imgThumb::" + imgThumb);
+            //   var fs = require("fs");
+            //  fs.readFile(imgThumb, function (err, data) {
+            //  if (err)
+            //       throw err;
+            // Encode to base64
+            //   var encodedImage = new Buffer(data, 'binary').toString('base64');
+            // console.log(encodedImage);
+            // Decode from base64
 //                    var decodedImage = new Buffer(encodedImage, 'base64').toString('binary');
 //                    console.log(decodedImage);
 
-                var strQuery = "INSERT INTO media( stored_name, path, path_thumb , file, extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','/private/uploaded/files/thumbnail/" + name + "','" + encodedImage + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
-                console.log(strQuery);
-                con.query(strQuery, function (err, rows) {
-                    if (err) {
-                        console.log(err);
-                        res.send({status: 403, data: 'error occured'});
-                    }
-                    else {
-                        res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: 'private/uploaded/files/thumbnail/' + name, file: encodedImage, extension: type, size: size});
-                    }
-                });
+            var strQuery = "INSERT INTO media( stored_name, path, path_thumb , extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','/private/uploaded/files/thumbnail/" + name + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
+            console.log(strQuery);
+            con.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+                    res.send({status: 403, data: 'error occured'});
+                }
+                else {
+                    res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: 'private/uploaded/files/thumbnail/' + name, extension: type, size: size});
+                }
             });
+            //  });
             // res.send(JSON.stringify(obj));
         }
         else {
@@ -147,6 +147,7 @@ app.post('/upload-image', function (req, res) {
 });
 
 app.post('/upload-audio', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.post(req, res, function (error, obj, redirect) {
         if (!error)
         {
@@ -180,6 +181,7 @@ app.post('/upload-audio', function (req, res) {
 });
 
 app.post('/upload-video', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.post(req, res, function (error, obj, redirect) {
 
         if (!error) {
@@ -214,33 +216,33 @@ app.post('/upload-video', function (req, res) {
                 var thumbpath = metadata.thumbnailsData[0].path;
                 var thumbname = thumbpath.split('#');
                 var video_thumb = 'private/uploaded/files/thumbnail' + thumbname[0];
-                var videopathThumb = uploadeddir + '/thumbnail' + thumbname[0];
-                console.log(videopathThumb);
-                var fs = require("fs");
+                //    var videopathThumb = uploadeddir + '/thumbnail' + thumbname[0];
+                //   console.log(videopathThumb);
+                // var fs = require("fs");
 
-                fs.readFile(videopathThumb, function (err, data) {
-                    if (err)
-                        throw err;
-                    // Encode to base64
-                    var encodedImage = new Buffer(data, 'binary').toString('base64');
-                    //  console.log(encodedImage);
-                    // Decode from base64
+//                fs.readFile(videopathThumb, function (err, data) {
+//                    if (err)
+//                        throw err;
+//                    // Encode to base64
+//                    var encodedImage = new Buffer(data, 'binary').toString('base64');
+                //  console.log(encodedImage);
+                // Decode from base64
 //                    var decodedImage = new Buffer(encodedImage, 'base64').toString('binary');
 //                    console.log(decodedImage);
 
-                    var strQuery = "INSERT INTO media( stored_name, path, path_thumb , file, extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','" + video_thumb + "','" + encodedImage + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
-                    //     console.log(strQuery);
-                    con.query(strQuery, function (err, rows) {
-                        if (err) {
-                            console.log(err);
-                            res.send({status: 403, data: 'error occured'});
-                        }
-                        else {
-                            res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: video_thumb, file: encodedImage, extension: type, size: size});
-                        }
-                    });
-
+                var strQuery = "INSERT INTO media( stored_name, path, path_thumb , extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','" + video_thumb + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
+                //     console.log(strQuery);
+                con.query(strQuery, function (err, rows) {
+                    if (err) {
+                        console.log(err);
+                        res.send({status: 403, data: 'error occured'});
+                    }
+                    else {
+                        res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: video_thumb, extension: type, size: size});
+                    }
                 });
+
+                //   });
 //              res.send(response);
             });
 
@@ -253,6 +255,7 @@ app.post('/upload-video', function (req, res) {
 
 // the path SHOULD match options.uploadUrl
 app.delete('/uploaded/files/:name', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.delete(req, res, function (err, obj) {
         res.Json({error: err});
     });
@@ -260,6 +263,7 @@ app.delete('/uploaded/files/:name', function (req, res) {
 });
 
 app.get('/deleteMedia', function (req, res) {
+    var uploader = libRequried(options1);
     uploader.get(req, res, function (err, obj) {
         if (!err) {
             res.send(JSON.stringify(obj));
@@ -396,6 +400,7 @@ app.post('/phonenoexists', function (req, res) {
 
 
 app.post('/upload-profile-pic', function (req, res) {
+    var uploader2 = libRequried(options2);
     var fs = require('fs');
     var userId = req.body.user_id;
 //    var userId = 103;
@@ -444,8 +449,8 @@ app.post('/upload-profile-pic', function (req, res) {
                             }
                         });
                     }
-                    name = name.replace(" ", "%20");
-                    var updateQuery = "UPDATE users SET contact_profilepic='uploads/images/" + name + "', contact_profilepicthumb='uploads/images/thumbnail/" + name + "' where userid="+userId;
+
+                    var updateQuery = "UPDATE users SET contact_profilepic='uploads/images/" + name + "', contact_profilepicthumb='uploads/images/thumbnail/" + name + "' where userid=" + userId;
                     console.log(updateQuery);
                     con.query(updateQuery, function (err, rows) {
                         if (err) {
@@ -453,6 +458,7 @@ app.post('/upload-profile-pic', function (req, res) {
                             res.send({status: 403, data: 'error occured'});
                         }
                         else {
+                            name = name.replace(" ", "%20");
                             res.send({status: 200, storedName: name, path: 'uploads/images/' + name, path_thumb: 'uploads/images/thumbnail/' + name, extension: type, size: size});
                         }
                     });
@@ -465,6 +471,138 @@ app.post('/upload-profile-pic', function (req, res) {
         }
     });
 
+});
+
+app.post('/pinSearchUserGroup', function (req, res) {
+    var members_list = [];
+    var pin = req.body.pin;
+    var userId = req.body.user_id;
+    if (pin === undefined) {
+        console.log('No data provided');
+        res.json({status: 402, data: 'please provide pin'});
+    }
+    if (pin.length === 0) {
+        console.log('No data provided');
+        res.json({status: 402, data: 'no pin value provided'});
+    } else {
+//SELECT * FROM users WHERE contact_isgroup = 0 and `pin_no` like '%user%' and  userid not in ( SELECT `user_id` FROM `blocklist` WHERE `blocked_user_id` = 103 UNION  SELECT `blocked_user_id` FROM `blocklist` WHERE `user_id` =103 )  UNION SELECT * FROM `users` WHERE `contact_isgroup` = 0 and `contact_isnovisible` = 1 and `pin_no` like '%user%';
+        var strQuery = "SELECT * FROM users WHERE contact_isgroup = 0 and pin_no like '%" + pin + "%' and  userid not in ( SELECT `user_id` FROM `blocklist` WHERE `blocked_user_id` = " + userId + " UNION  SELECT `blocked_user_id` FROM `blocklist` WHERE `user_id` =" + userId + " ) and userid!=" + userId + "  UNION SELECT * FROM users WHERE contact_isgroup = 1 and contact_isnovisible = 1 and  pin_no like '%" + pin + "%'";
+        console.log(strQuery);
+        con.query(strQuery, function (err, rows) {
+            if (err) {
+                console.log(err);
+                res.json({status: 403, data: 'error occured'});
+            }
+            else {
+                console.log('Data received from Db:\n');
+                console.log(rows);
+                if (rows.length > 0) {
+                    async.forEachSeries(rows, function (member, callback)
+                    {
+                        var members_data = {};
+                        members_data.user_id = member.userid;
+                        members_data.pin_no = member.pin_no;
+                        members_data.contact_displayname = member.contact_displayname;
+                        members_data.contact_status = member.contact_status;
+                        members_data.contact_gender = member.contact_gender;
+                        members_data.contact_profilepic = member.contact_profilepic;
+                        members_data.contact_profilepicthumb = member.contact_profilepicthumb;
+                        members_data.contact_isnovisible = member.contact_isnovisible;
+                        members_data.contact_isgroup = member.contact_isgroup;
+                        members_data.contact_privacy_pic = member.contact_privacy_pic;
+                        members_data.contact_sequence = member.contact_sequence;
+                        members_data.created_time = member.created_time;
+                        members_data.created_by = member.created_by;
+                        members_list.push(members_data);
+                        callback();
+                    }, function () {
+//                        members_Object = JSON.stringify(members_list);
+                        res.json({status: 200, pin: pin, pin_exits: 1, data: members_list});
+                    });
+                }
+                else {
+                    res.json({status: 200, pin_exits: 0});
+                }
+            }
+        });
+    }
+});
+
+var accountSid = 'AC8411050af25985df243d5b3741935364';
+var authToken = '2cc43c38329da8d32ed25c64e37c7265';
+
+app.post('/generateVerificationCode', function (req, res) {
+    var phoneNo = req.body.phone_no;
+    var verificationcode;
+    var Low = 10000;
+    var High = 99999;
+
+    verificationcode = math.randomInt(Low, High);
+    console.log(verificationcode);
+    // Twilio Credentials 
+
+    //require the Twilio module and create a REST client 
+    var client = require('twilio')(accountSid, authToken);
+
+//INSERT INTO table (id, name, age) VALUES(1, "A", 19) ON DUPLICATE KEY UPDATE    
+//name="A", age=19
+    var strQuery = "INSERT INTO phonevarification ( phone_no , verification_code) VALUES(" + phoneNo + ", " + verificationcode + " )  ON DUPLICATE KEY UPDATE verification_code = " + verificationcode;
+    console.log(strQuery);
+    con.query(strQuery, function (err, rows) {
+        if (err) {
+            console.log(err);
+            res.json({status: 403, data: 'error occured'});
+        }
+        else {
+            console.log('Data received from Db:\n');
+            console.log(rows);
+            client.messages.create({
+                to: "+918818896667",
+                from: "+12014313047",
+                body: "Your Pingova verification code is: " + verificationcode
+            }, function (err, message) {
+                if (err) {
+                    console.log(err);
+                    if(err.status=== 400){
+                        res.json({status: 403, data: 'The Number is not valid'});
+                    }
+                    res.json({status: 403, data: 'error occured'});
+                } else {
+                    console.log(message);
+                    res.json({status: 200, data: 'message sent successfully'});
+                }
+                console.log(message);
+            });
+
+        }
+    });
+});
+
+app.post('/verifyCode', function (req, res) {
+    var verificationCode = req.body.verification_code;
+    var phoneNo = req.body.phone_no;
+    console.log(verificationCode);
+    var strQuery = "SELECT * from phonevarification WHERE verification_code = " + verificationCode + " and phone_no = " + phoneNo;
+    console.log(strQuery);
+    con.query(strQuery, function (err, rows) {
+        if (err) {
+            console.log(err);
+            res.json({status: 403, data: 'error occured'});
+        }
+        else {
+            console.log('Data received from Db:\n');
+            console.log(rows);
+            if (rows.length > 0) {
+                var strQuery = "DELETE from phonevarification WHERE verification_code = " + verificationCode + " and phone_no = " + phoneNo;
+                console.log(strQuery);
+                con.query(strQuery);
+                res.json({status: 200, data: 'Account verified successfully'});
+            } else {
+                res.json({status: 200, data: 'Verification failed'});
+            }
+
+        }
+    });
 });
 
 app.listen(3001, function () {

@@ -95,61 +95,23 @@ io.sockets.on('connection', function (client) {
         var jsonMsg = JSON.parse(chatMessage);
         jsonMsg.timestamp = receivedTime; //getting the message from client and fetching the json data
         var user = jsonMsg.userto_id;
+        var messagedata = jsonMsg.msg_data;
+        var userfrom = jsonMsg.userfrom_id;
 
-        //getting the mongo data of the user to whom the message is sent
-        UserSchema.find({
-            'userId': user
-        }, function (err, doc) {
+        pool.getConnection(function (err, connection) {
             if (err)
             {
-                console.log("error in getting user details");
-                return err;
-            } else {
-                console.log("Length of doc is " + doc.length);
-                //save message in the database
-                var messagedata = jsonMsg.msg_data;
-                console.log(typeof messagedata);
-                if ((typeof messagedata) === "object") {
-                    //incase the message is in object form converting it to string
-                    messagedata = JSON.stringify(messagedata);
-                }
-
-                console.log("messagedata:::" + messagedata);
-                /*msg_status: {
-                 created: null,
-                 delivered: int,
-                 seen: int
-                 },*/
-                var newqueuemessage = new MessagequeueSchema({
-                    type: 1,
-                    userId_to: jsonMsg.userto_id,
-                    userId_from: jsonMsg.userfrom_id,
-                    msg_type: jsonMsg.msg_type,
-                    msg_data: messagedata,
-                    msg_status: 1,
-                    msg_localid: jsonMsg.msg_local_id,
-                    timestamp: receivedTime,
-                    msg_serverid: 11
-                });
-                //saving the message to database
-                newqueuemessage.save(function (err) {
-                    if (err) {
-                        return err;
-                    } else {
-                        console.log("New message  added in queue !");
-                    }
-                });
-                //if the entered ID exists in mongo DB , this condition will be true and executed
-                if (doc.length > 0) {
-                    // if user is present, then update his socket id					
-                    var socketid = doc[0].socketId;
-                    console.log("socket id of opponent " + socketid);
-                    if (io.sockets.sockets[socketid] !== undefined)
-                    {//user connected to node server
-                        io.sockets.socket(socketid).emit("receivemessage", JSON.stringify(jsonMsg));
-                    } else//When user is not connected to node server
-                    {
-                        console.log("Socket not connected");
+                connection.release();
+                return;
+            }
+            //SELECT * FROM `blocklist` WHERE ( `user_id`=103 and `blocked_user_id`=109 ) or ( `user_id`=109 and `blocked_user_id`=103 )
+            var strQuery = "SELECT * FROM blocklist WHERE ( user_id=" + user + " and blocked_user_id=" + userfrom + ") OR ( user_id=" + userfrom + " and blocked_user_id=" + user + " )";
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log(rows);
+                    if (rows.length > 0) {
                         var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
                         if (io.sockets.socket(client.id) !== undefined)
@@ -176,38 +138,126 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         }
+
                     }
-                } else//when doc get from mongadb length is less that 0
-                {
-                    console.log("Socket not connected");
-                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
-                    // io.sockets.socket(client.id).emit("messagestatus", myarr);
-                    if (io.sockets.socket(client.id) !== undefined)
-                    {
-                        console.log("**socket id is valid for sending message user**");
-                        io.sockets.socket(client.id).emit("messagestatus", myarr);
-                    } else
-                    {
-                        console.log("**socket id is not valid for sending message user**");
-                        var newqueuemessage = new MessagequeueSchema({
-                            type: 2,
-                            userId_to: jsonMsg.userfrom_id,
-                            to_send: jsonMsg.userto_id,
-                            msg_localid: jsonMsg.msg_local_id,
-                            msg_serverid: 11,
-                            msg_status: 1,
-                            timestamp: receivedTime
-                        });
-                        newqueuemessage.save(function (err) {
-                            if (err) {
+                    else {
+
+                        //getting the mongo data of the user to whom the message is sent
+                        UserSchema.find({
+                            'userId': user
+                        }, function (err, doc) {
+                            if (err)
+                            {
+                                console.log("error in getting user details");
                                 return err;
                             } else {
-                                console.log("New message  added in queue !");
+                                console.log("Length of doc is " + doc.length);
+                                //save message in the database
+
+                                console.log(typeof messagedata);
+                                if ((typeof messagedata) === "object") {
+                                    //incase the message is in object form converting it to string
+                                    messagedata = JSON.stringify(messagedata);
+                                }
+
+                                console.log("messagedata:::" + messagedata);
+                                /*msg_status: {
+                                 created: null,
+                                 delivered: int,
+                                 seen: int
+                                 },*/
+                                var newqueuemessage = new MessagequeueSchema({
+                                    type: 1,
+                                    userId_to: jsonMsg.userto_id,
+                                    userId_from: jsonMsg.userfrom_id,
+                                    msg_type: jsonMsg.msg_type,
+                                    msg_data: messagedata,
+                                    msg_status: 1,
+                                    msg_localid: jsonMsg.msg_local_id,
+                                    timestamp: receivedTime,
+                                    msg_serverid: 11
+                                });
+                                //saving the message to database
+                                newqueuemessage.save(function (err) {
+                                    if (err) {
+                                        return err;
+                                    } else {
+                                        console.log("New message  added in queue !");
+                                    }
+                                });
+                                //if the entered ID exists in mongo DB , this condition will be true and executed
+                                if (doc.length > 0) {
+                                    // if user is present, then update his socket id					
+                                    var socketid = doc[0].socketId;
+                                    console.log("socket id of opponent " + socketid);
+                                    if (io.sockets.sockets[socketid] !== undefined)
+                                    {//user connected to node server
+                                        io.sockets.socket(socketid).emit("receivemessage", JSON.stringify(jsonMsg));
+                                    } else//When user is not connected to node server
+                                    {
+                                        console.log("Socket not connected");
+                                        var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
+                                        // io.sockets.socket(client.id).emit("messagestatus", myarr);
+                                        if (io.sockets.socket(client.id) !== undefined)
+                                        {
+                                            console.log("**socket id is valid for sending message user**");
+                                            io.sockets.socket(client.id).emit("messagestatus", myarr);
+                                        } else
+                                        {
+                                            console.log("**socket id is not valid for sending message user**");
+                                            var newqueuemessage = new MessagequeueSchema({
+                                                type: 2,
+                                                userId_to: jsonMsg.userfrom_id,
+                                                to_send: jsonMsg.userto_id,
+                                                msg_localid: jsonMsg.msg_local_id,
+                                                msg_serverid: 11,
+                                                msg_status: 1, //message not delivered to user
+                                                timestamp: receivedTime
+                                            });
+                                            newqueuemessage.save(function (err) {
+                                                if (err) {
+                                                    return err;
+                                                } else {
+                                                    console.log("New message  added in queue !");
+                                                }
+                                            });
+                                        }
+                                    }
+                                } else//when doc get from mongadb length is less that 0
+                                {
+                                    console.log("Socket not connected");
+                                    var myarr = '{"message_local_id":"' + jsonMsg.msg_local_id + '","status":"1","userid_to":"' + jsonMsg.userto_id + '","timestamp":"' + receivedTime + '"}';
+                                    // io.sockets.socket(client.id).emit("messagestatus", myarr);
+                                    if (io.sockets.socket(client.id) !== undefined)
+                                    {
+                                        console.log("**socket id is valid for sending message user**");
+                                        io.sockets.socket(client.id).emit("messagestatus", myarr);
+                                    } else
+                                    {
+                                        console.log("**socket id is not valid for sending message user**");
+                                        var newqueuemessage = new MessagequeueSchema({
+                                            type: 2,
+                                            userId_to: jsonMsg.userfrom_id,
+                                            to_send: jsonMsg.userto_id,
+                                            msg_localid: jsonMsg.msg_local_id,
+                                            msg_serverid: 11,
+                                            msg_status: 1,
+                                            timestamp: receivedTime
+                                        });
+                                        newqueuemessage.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New message  added in queue !");
+                                            }
+                                        });
+                                    }
+                                }
                             }
                         });
                     }
                 }
-            }
+            });
         });
     });
 
@@ -678,6 +728,25 @@ io.sockets.on('connection', function (client) {
                                                         "timestamp": item.timestamp
                                                     });
                                                 }
+                                                else if (item.type === 13) {//block user notification
+
+                                                    messagearray.message.push({
+                                                        "type": 13,
+                                                        "blocked_to_user_id": item.userId_to,
+                                                        "blocked_by_user_id": item.userId_from,
+                                                        "status": item.msg_data,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
+                                                else if (item.type === 14) {//messages seen notification
+
+                                                    messagearray.message.push({
+                                                        "type": 14,
+                                                        "userto_id": item.userId_to,
+                                                        "userId_from": item.userId_from,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
                                             }
                                             callback();
                                         }, function () {
@@ -858,45 +927,69 @@ io.sockets.on('connection', function (client) {
         });
     });
 
-//checking if user online
+    //checking if user online
     client.on("searchUserOnline", function (msg) {
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
-        UserSchema.find({
-            'userId': user
-        }, function (err, doc) {
+        var userfrom = jsonMsg.userfrom_id;
+
+        pool.getConnection(function (err, connection) {
             if (err)
             {
-                console.log("error in getting user details");
-                return err;
-            } else {
-                var myarr = '{"online_status":"0","user_id":"' + user + '"}';
-                if (doc.length > 0) {
-                    var socketid = doc[0].socketId;
-                    if (io.sockets.sockets[socketid] !== undefined)
-                    {
-                        if (doc[0].isOnline === 1) {
-                            myarr = '{"online_status":"1","user_id":"' + user + '"}';
-                        }
-                        else {
-                            myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
-                        }
-
+                connection.release();
+                return;
+            }
+            //SELECT * FROM `blocklist` WHERE ( `user_id`=103 and `blocked_user_id`=109 ) or ( `user_id`=109 and `blocked_user_id`=103 )
+            var strQuery = "SELECT * FROM blocklist WHERE ( user_id=" + user + " and blocked_user_id=" + userfrom + ") OR ( user_id=" + userfrom + " and blocked_user_id=" + user + " )";
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log(rows);
+                    if (rows.length > 0) {
+                        var myarr = '{"online_status":"2","user_id":"' + user + '"}';
                         io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
                     }
                     else {
-                        myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
-                        io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
+                        UserSchema.find({
+                            'userId': user
+                        }, function (err, doc) {
+                            if (err)
+                            {
+                                console.log("error in getting user details");
+                                return err;
+                            } else {
+                                var myarr = '{"online_status":"0","user_id":"' + user + '"}';
+                                if (doc.length > 0) {
+                                    var socketid = doc[0].socketId;
+                                    if (io.sockets.sockets[socketid] !== undefined)
+                                    {
+                                        if (doc[0].isOnline === 1) {
+                                            myarr = '{"online_status":"1","user_id":"' + user + '"}';
+                                        }
+                                        else {
+                                            myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
+                                        }
+                                        io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
+                                    }
+                                    else {
+                                        myarr = '{"online_status":"0","last_seen":"' + doc[0].lastseen + '","user_id":"' + user + '"}';
+                                        io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
+                                    }
+                                } else {
+                                    io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
+                                }
+                            }
+                        });
                     }
-                } else {
-
-                    io.sockets.socket(client.id).emit("userOnlineStatus", myarr);
                 }
-            }
+            });
         });
     });
 
     //get the typing status
+    //user who is typing will fire this event incase he is typing 
+    //typing_status will be 1
     client.on("sendTypingStatus", function (msg) {
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.userto_id;
@@ -2798,6 +2891,181 @@ io.sockets.on('connection', function (client) {
                     }
                 }
             });
+        });
+    });
+
+    client.on("blockUser", function (msg) {
+        var receivedTime = Math.floor(Date.now() / 1000);
+        var jsonMsg = JSON.parse(msg);
+        var blockByUserId = jsonMsg.user_id;
+        var blockToUserId = jsonMsg.block_user_id;
+        var status = jsonMsg.status;
+        var jsonData = {};
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            if (status === '1') {
+                var blockQuery = "INSERT IGNORE INTO blocklist SET user_id=" + blockByUserId + ", blocked_user_id =" + blockToUserId;
+                console.log(blockQuery);
+                connection.query(blockQuery, function (err, userinfo) {
+                    if (err) {
+                        console.log(err);
+                        throw err;
+                    } else {
+                        UserSchema.find({
+                            'userId': blockToUserId
+                        }, function (err, doc) {
+                            if (err)
+                            {
+                                console.log("error in getting user details");
+                                return err;
+                            } else {
+                                if (doc.length > 0) {
+                                    // if user is present, then update his socket id					
+                                    var socketid = doc[0].socketId;
+                                    console.log("socket id of opponent " + socketid);
+                                    jsonData.blocked_by_user_id = blockByUserId;
+                                    jsonData.blocked_to_user_id = blockToUserId;
+                                    jsonData.timestamp = receivedTime;
+                                    jsonData.status = status;
+                                    var jsonString = JSON.stringify(jsonData);
+                                    io.sockets.socket(client.id).emit("blockedAcknowledge", jsonString);
+                                    if (io.sockets.sockets[socketid] !== undefined)
+                                    {//user connected to node server
+                                        io.sockets.socket(socketid).emit("blockedNotification", jsonString);
+                                    } else//When user is not connected to node server
+                                    {
+                                        console.log("Socket not connected");
+                                        var newqueuemessage = new MessagequeueSchema({
+                                            type: 13,
+                                            userId_to: blockToUserId,
+                                            userId_from: blockByUserId,
+                                            msg_data: status,
+                                            timestamp: receivedTime
+                                        });
+                                        newqueuemessage.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New message  added in queue !");
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+            else if (status === '0') {
+                var blockQuery = "DELETE from blocklist where user_id=" + blockByUserId + " and  blocked_user_id =" + blockToUserId;
+                console.log(blockQuery);
+                connection.query(blockQuery, function (err, userinfo) {
+                    if (err) {
+                        console.log(err);
+                        throw err;
+                    } else {
+                        UserSchema.find({
+                            'userId': blockToUserId
+                        }, function (err, doc) {
+                            if (err)
+                            {
+                                console.log("error in getting user details");
+                                return err;
+                            } else {
+
+                                if (doc.length > 0) {
+                                    // if user is present, then update his socket id					
+                                    var socketid = doc[0].socketId;
+                                    console.log("socket id of opponent " + socketid);
+                                    jsonData.blocked_by_user_id = blockByUserId;
+                                    jsonData.blocked_to_user_id = blockToUserId;
+                                    jsonData.timestamp = receivedTime;
+                                    jsonData.status = status;
+                                    var jsonString = JSON.stringify(jsonData);
+                                    io.sockets.socket(client.id).emit("blockedAcknowledge", jsonString);
+                                    if (io.sockets.sockets[socketid] !== undefined)
+                                    {//user connected to node server
+                                        io.sockets.socket(socketid).emit("blockedNotification", jsonString);
+                                    } else//When user is not connected to node server
+                                    {
+                                        console.log("Socket not connected");
+                                        var newqueuemessage = new MessagequeueSchema({
+                                            type: 13,
+                                            userId_to: blockToUserId,
+                                            userId_from: blockByUserId,
+                                            msg_data: status,
+                                            timestamp: receivedTime
+                                        });
+                                        newqueuemessage.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New message  added in queue !");
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    //to send message seen notification
+    client.on("messageSeenStatus", function (msg)
+    {
+        var receivedTime = Math.floor(Date.now() / 1000);
+        var jsonMsg = JSON.parse(msg);
+        var userFrom = jsonMsg.userfrom_id;
+        var userTo = jsonMsg.userto_id;
+        var jsonData = {};
+
+        //getting the mongo data of the user to whom the message is sent
+        UserSchema.find({
+            'userId': userTo
+        }, function (err, doc) {
+            if (err)
+            {
+                console.log("error in getting user details");
+                return err;
+            } else {
+                if (doc.length > 0) {
+                    jsonData.userfrom_id = userFrom;
+                    jsonData.userto_id = userTo;
+                    jsonData.timestamp = receivedTime;
+                    var jsonString = JSON.stringify(jsonData);
+                    var socketid = doc[0].socketId;
+                    console.log("socket id of opponent " + socketid);
+
+                    if (io.sockets.sockets[socketid] !== undefined)
+                    {//user connected to node server
+                        io.sockets.socket(socketid).emit("messagesSeenNotification", jsonString);
+                    } else//When user is not connected to node server
+                    {
+                        console.log("Socket not connected");
+                        var newqueuemessage = new MessagequeueSchema({
+                            type: 14,
+                            userId_to: userTo,
+                            userId_from: userFrom,
+                            timestamp: receivedTime
+                        });
+                        newqueuemessage.save(function (err) {
+                            if (err) {
+                                return err;
+                            } else {
+                                console.log("New message  added in queue !");
+                            }
+                        });
+                    }
+                }
+            }
         });
     });
 });
