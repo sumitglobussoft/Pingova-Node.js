@@ -399,11 +399,12 @@ app.post('/phonenoexists', function (req, res) {
 });
 
 
-app.post('/upload-profile-pic', function (req, res) {
+app.post('/upload-profile-pic/:id', function (req, res) {
     var uploader2 = libRequried(options2);
     var fs = require('fs');
-    var userId = req.body.user_id;
-//    var userId = 103;
+    var userId = req.params.id;
+    console.log("userId::::"+userId);
+//    var userId = 213;
     uploader2.post(req, res, function (error, obj, redirect) {
         if (!error)
         {
@@ -427,28 +428,28 @@ app.post('/upload-profile-pic', function (req, res) {
                     var filePath = rows[0].contact_profilepic;
                     var filePathThumb = rows[0].contact_profilepicthumb;
                     console.log("filePath:" + filePath + "::::::filePathThumb:" + filePathThumb);
-                    var appendPath = __dirname + "/../pingova/";
-                    if ((filePath !== null) && (filePath.length > 0)) {
-                        var fullFilePath = appendPath + filePath;
-                        var fullFilePathThumb = appendPath + filePathThumb;
-                        fs.unlink(fullFilePath, function (err) {
-                            if (err) {
-                                console.log(err);
-                                console.log({status: 403, data: 'error occured'});
-                            } else {
-                                fs.unlink(fullFilePathThumb, function (err) {
-                                    if (err) {
-                                        console.log(err);
-                                        console.log({status: 403, data: 'error occured:Deleted from folder but not DB'});
-                                    }
-                                    else {
-                                        console.log({status: 200, data: 'Done deleting from DB and folder'});
-
-                                    }
-                                });
-                            }
-                        });
-                    }
+//                    var appendPath = __dirname + "/../pingova/";
+//                    if ((filePath !== null) && (filePath.length > 0)) {
+//                        var fullFilePath = appendPath + filePath;
+//                        var fullFilePathThumb = appendPath + filePathThumb;
+//                        fs.unlink(fullFilePath, function (err) {
+//                            if (err) {
+//                                console.log(err);
+//                                console.log({status: 403, data: 'error occured'});
+//                            } else {
+//                                fs.unlink(fullFilePathThumb, function (err) {
+//                                    if (err) {
+//                                        console.log(err);
+//                                        console.log({status: 403, data: 'error occured:Deleted from folder but not DB'});
+//                                    }
+//                                    else {
+//                                        console.log({status: 200, data: 'Done deleting from DB and folder'});
+//
+//                                    }
+//                                });
+//                            }
+//                        });
+//                    }
 
                     var updateQuery = "UPDATE users SET contact_profilepic='uploads/images/" + name + "', contact_profilepicthumb='uploads/images/thumbnail/" + name + "' where userid=" + userId;
                     console.log(updateQuery);
