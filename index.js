@@ -43,23 +43,23 @@ process.on('SIGINT', function () {
 });
 
 
-var pool = mysql.createPool({
-    connectionLimit: 100, //important
-    host: 'localhost',
-    user: 'pingova',
-    password: 'pNUNsGV8KRhPpEfM',
-    database: 'pingova',
-    debug: false
-});
-
 //var pool = mysql.createPool({
 //    connectionLimit: 100, //important
 //    host: 'localhost',
-//    user: 'root',
-//    password: 'root',
+//    user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
 //    database: 'pingova',
 //    debug: false
 //});
+
+var pool = mysql.createPool({
+    connectionLimit: 100, //important
+    host: 'localhost',
+    user: 'root',
+    password: 'root',
+    database: 'pingova',
+    debug: false
+});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -83,7 +83,7 @@ io.sockets.on('connection', function (client) {
 
     //sends P2P mesagess
     client.on("sendMessage", function (chatMessage) {
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
         ///*console.log("Message From: " + chatMessage.fromName);
         // console.log("Message To: " + chatMessage.toName);
 
@@ -141,7 +141,6 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         }
-
                     }
                     else {
 
@@ -266,7 +265,7 @@ io.sockets.on('connection', function (client) {
 
     //get the delivered status
     client.on("receivedMessageStatus", function (msg) {
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
         console.log("=====================receivedMessageStatus=========================" + msg);
         var jsonMsg = JSON.parse(msg);
         jsonMsg.timestamp = jsonMsg;
@@ -421,7 +420,7 @@ io.sockets.on('connection', function (client) {
     //when a user connects to the sockets it hits this service. and here in this event we get all the pending messages 
     client.on("checkStatus", function (msg) {
         var jsonMsg1 = JSON.parse(msg);
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.user_id);
         console.log("@@@@@@@@@@@@@@@" + jsonMsg1.sequence);
         var strQuery = "SELECT * FROM users WHERE userid=" + jsonMsg1.user_id;
@@ -751,7 +750,7 @@ io.sockets.on('connection', function (client) {
                                                         "timestamp": item.timestamp
                                                     });
                                                 }
-                                                else if (item.type === 15) {//messages seen notification
+                                                else if (item.type === 15) {//friendRequestAcceptedResponse
 
                                                     messagearray.message.push({
                                                         "type": 15,
@@ -762,7 +761,7 @@ io.sockets.on('connection', function (client) {
                                                         "timestamp": item.timestamp
                                                     });
                                                 }
-                                                else if (item.type === 16) {//messages seen notification
+                                                else if (item.type === 16) {//friendRequestAccepted
 
                                                     messagearray.message.push({
                                                         "type": 16,
@@ -771,6 +770,17 @@ io.sockets.on('connection', function (client) {
                                                         "msg_server_id": item.msg_serverid,
                                                         "msg_data": item.msg_data,
                                                         "timestamp": item.timestamp
+                                                    });
+                                                }
+
+                                                else if (item.type === 17) { //pending friend request
+                                                    messagearray.message.push({
+                                                        "type": 17,
+                                                        "userto_id": item.userId_to,
+                                                        "userId_from": item.userId_from,
+                                                        "msg_data": item.msg_data,
+                                                        "timestamp": item.timestamp
+
                                                     });
                                                 }
 
@@ -795,41 +805,42 @@ io.sockets.on('connection', function (client) {
                                 }
 
                             });
-                            //friend requests
-                            friendRequestSchema.find({
-                                'status': 0,
-                                'friendUserId': userid
-                            }, function (err, doc)
-                            {
-                                if (err)
-                                {
-                                    console.log("ERROR IN GETTING pendingfriendrequest");
-                                } else
-                                {
-                                    console.log("count  of queue msg document " + doc.length);
-                                    if (doc.length > 0)
-                                    {
-                                        var friendrequestarray = {
-                                            friendrequest: []
-                                        };
-                                        async.forEachSeries(doc, function (item, callback)
-                                        {
-                                            console.log("****************************************");
-                                            friendrequestarray.friendrequest.push({
-                                                "userid_to": item.friendUserId,
-                                                "userid_from": item.userId,
-                                                "status": item.status
-                                            });
-                                            callback();
-                                        }, function () {
-                                            io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
-                                        });
-                                    } else
-                                    {
-                                        console.log("size of documnet is less that zero " + doc.length);
-                                    }
-                                }
-                            });
+//                            //friend requests
+//                            friendRequestSchema.find({
+//                                'status': 0,
+//                                'friendUserId': userid
+//                            }, function (err, doc)
+//                            {
+//                                if (err)
+//                                {
+//                                    console.log("ERROR IN GETTING pendingfriendrequest");
+//                                } else
+//                                {
+//                                    console.log("count  of queue msg document " + doc.length);
+//                                    if (doc.length > 0)
+//                                    {
+//                                        var friendrequestarray = {
+//                                            friendrequest: []
+//                                        };
+//                                        async.forEachSeries(doc, function (item, callback)
+//                                        {
+//                                            console.log("****************************************");
+//                                            friendrequestarray.friendrequest.push({
+//                                                "userid_to": item.friendUserId,
+//                                                "userid_from": item.userId,
+//                                                "timestamp": item.timestamp,
+//                                                "status": item.status
+//                                            });
+//                                            callback();
+//                                        }, function () {
+//                                            io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
+//                                        });
+//                                    } else
+//                                    {
+//                                        console.log("size of documnet is less that zero " + doc.length);
+//                                    }
+//                                }
+//                            });
                         } else//if sequence is changes 
                         {
                             io.sockets.socket(client.id).emit("SequenceCheck", false);
@@ -881,7 +892,7 @@ io.sockets.on('connection', function (client) {
 
     // the event is hit when user disconnects from the socket
     client.on("disconnect", function () {
-        var lastseen = Math.floor(Date.now() / 1000);
+        var lastseen = Math.floor(Date.now());
         //gets the current time in secs
         console.log("=================================>" + lastseen);
         UserSchema.find({
@@ -910,7 +921,7 @@ io.sockets.on('connection', function (client) {
 
     //to run when user closes the application but application will run in back ground
     client.on("applicationInBackground", function () {
-        var lastseen = Math.floor(Date.now() / 1000);
+        var lastseen = Math.floor(Date.now());
         console.log("=================================>" + lastseen);
         UserSchema.find({
             'socketId': client.id
@@ -970,7 +981,7 @@ io.sockets.on('connection', function (client) {
                                         friends.friendUserId = doc[0].friendUserId;
                                         friends.status = doc[0].status;
                                     }
-                                    
+
                                     members_data.user_id = member.userid;
                                     members_data.pin_no = member.pin_no;
                                     members_data.contact_displayname = member.contact_displayname;
@@ -1181,7 +1192,7 @@ io.sockets.on('connection', function (client) {
 
     //sending friend request
     client.on("sendFriendRequest", function (data) {
-
+        var receivedTime = "" + Math.floor(Date.now());
         var jsonMsg = JSON.parse(data);
         var userfrom_id = jsonMsg.userfrom_id; // req. sending user.
         var userto_id = jsonMsg.userto_id; // req. receiving user.
@@ -1196,8 +1207,7 @@ io.sockets.on('connection', function (client) {
                 return err;
             } else {
                 if (doc1.length > 0) {
-                    var myarr = '{"request_status":"' + 1 + '"}';//sent successfully
-                    io.sockets.socket(client.id).emit("receiveFriendStatus", myarr);
+
                     friendRequestSchema.find({$or: [{
                                 'userId': userfrom_id,
                                 'friendUserId': userto_id
@@ -1212,16 +1222,22 @@ io.sockets.on('connection', function (client) {
                             if (doc.length > 0) {
 //                                var myarr = '{"request_status":"' + 3 + '"}';//already request sent or received
                                 //if (request_status === '1') {
-                                doc[0].request_status = 0;
-                                doc[0].save();
+//                                doc[0].request_status = 0;
+//                                doc[0].save();                               
                                 //  }
+                                var myarr = '{"request_status":"' + 3 + '","value":"' + doc[0].status + '"}';//already had sent b4 : request_status:3 value 1 accepted 2 rejected
+                                io.sockets.socket(client.id).emit("receiveFriendStatus", myarr);
+
                                 //io.sockets.socket(client.id).emit("receiveFriendStatus", doc[0]);
                             }
                             else {
+                                var myarr = '{"request_status":"' + 1 + '"}';//sent successfully
+                                io.sockets.socket(client.id).emit("receiveFriendStatus", myarr);
 
                                 var friendrequestqueue = new friendRequestSchema({
                                     userId: userfrom_id,
                                     friendUserId: userto_id,
+                                    timestamp: receivedTime,
                                     status: 0
                                 });
                                 friendrequestqueue.save(function (err) {
@@ -1232,24 +1248,65 @@ io.sockets.on('connection', function (client) {
                                         console.log("friend request added in queue !");
                                         var socketid = doc1[0].socketId;
                                         // io.sockets.socket(client.id).emit("messagestatus", myarr);
-                                        if (io.sockets.sockets[socketid] !== undefined)
-                                        {
-                                            console.log("**socket id is valid for sending message user**");
-                                            var friendrequestarray = {
-                                                friendrequest: []
-                                            };
-                                            friendrequestarray.friendrequest.push({
-                                                "userid_to": userto_id,
-                                                "userid_from": userfrom_id,
-                                                "status": 0
-                                            });
-                                            console.log("****receiveFriendRequest****");
-                                            io.sockets.socket(socketid).emit("receiveFriendRequest", friendrequestarray);
+                                        var jsonUserData = {};
+                                        var jsonData = {};
+                                        pool.getConnection(function (err, connection) {
+                                            if (err)
+                                            {
+                                                console.log(err);
+                                                connection.release();
+                                                return;
+                                            }
+                                            var userinfoQuery = "Select * FROM users WHERE userid=" + userfrom_id; //getting the information of user who requested to join group
+                                            console.log(userinfoQuery);
+                                            connection.query(userinfoQuery, function (err, userinfo) {
+                                                if (err) {
+                                                    console.log(err);
+                                                    throw err;
+                                                } else {
+                                                    if (userinfo.length > 0) {
+                                                        jsonUserData.user_id = userinfo[0].userid;
+                                                        jsonUserData.pin_no = userinfo[0].pin_no;
+                                                        jsonUserData.contact_displayname = userinfo[0].contact_displayname;
+                                                        jsonUserData.contact_status = userinfo[0].contact_status;
+                                                        jsonUserData.contact_gender = userinfo[0].contact_gender;
+                                                        jsonUserData.contact_profilepic = userinfo[0].contact_profilepic;
+                                                        jsonUserData.contact_profilepicthumb = userinfo[0].contact_profilepicthumb;
 
-                                        } else
-                                        {
-                                            console.log("**socket id is not valid for sending message user**");
-                                        }
+                                                        jsonData.userid_to = userto_id;
+                                                        jsonData.userid_from = userfrom_id;
+                                                        jsonData.timestamp = receivedTime;
+                                                        jsonData.user_data = jsonUserData;
+                                                        jsonData.status = 0;
+                                                        var jsonString = JSON.stringify(jsonData);
+                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                        {
+                                                            console.log("**socket id is valid for sending message user**");
+                                                            console.log("****receiveFriendRequest****");
+                                                            io.sockets.socket(socketid).emit("receiveFriendRequest", jsonString);
+                                                        } else
+                                                        {
+                                                            console.log("**socket id is not valid for sending message user**");
+
+                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                type: 17,
+                                                                userId_to: userto_id,
+                                                                userId_from: userfrom_id,
+                                                                timestamp: receivedTime,
+                                                                msg_data: jsonString
+                                                            });
+                                                            newqueuemessage.save(function (err) {
+                                                                if (err) {
+                                                                    return err;
+                                                                } else {
+                                                                    console.log("New message  added in queue !");
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                }
+                                            });
+                                        });
                                     }
                                 });
                             }
@@ -1266,12 +1323,12 @@ io.sockets.on('connection', function (client) {
 
     //accept or reject friends request
     client.on("acceptRejectFriendRequest", function (data) {
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
 
         var jsonMsg = JSON.parse(data);
-        var userfrom_id = jsonMsg.userfrom_id; // req. sending user.
-        var userto_id = jsonMsg.userto_id; // req. receiving user.
-        var request_status = jsonMsg.status; // 1 for accept req and 2 reject and 3 cancle
+        var userfrom_id = jsonMsg.userto_id; //  req. receiving user. the 1 who had sent the friend request 
+        var userto_id = jsonMsg.userfrom_id; //req. sending user.    the 1 who got the request and accepting/ rejecting it
+        var request_status = jsonMsg.status; // 1 for accept req and 2 reject
 
         UserSchema.find({
             'userId': userfrom_id
@@ -1286,6 +1343,8 @@ io.sockets.on('connection', function (client) {
                     if (request_status === '2') {
                         var friendinfo = {};
                         friendinfo.request_status = request_status;
+                        friendinfo.userfrom_id = userfrom_id;
+                        friendinfo.userto_id = userto_id;
                         var socketid = doc1[0].socketId;
                         if (io.sockets.sockets[socketid] !== undefined)
                         {
@@ -1352,6 +1411,7 @@ io.sockets.on('connection', function (client) {
                             if (doc.length > 0) {
                                 console.log("++++++++++++request_status+++++++++++++++");
                                 doc[0].status = request_status;
+                                doc[0].timestamp = receivedTime;
                                 doc[0].save();
 
                                 if (request_status === '1') {
@@ -1495,7 +1555,7 @@ io.sockets.on('connection', function (client) {
 
     //Creating the group
     client.on("createGroup", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var groupId = jsonMsg.group_id;
         var arrayGroupMembers = jsonMsg.array_group_members;
@@ -1665,7 +1725,7 @@ io.sockets.on('connection', function (client) {
 
     //sending Message To the Group
     client.on("sendMessageToGroup", function (groupMsg) {
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
         var jsonGroupMsg = JSON.parse(groupMsg);
         var groupId = jsonGroupMsg.userto_id; //group id
         var userIdFrom = jsonGroupMsg.userfrom_id;
@@ -1924,7 +1984,7 @@ io.sockets.on('connection', function (client) {
 
 //  leaving group event
     client.on("leaveGroup", function (data) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonData = JSON.parse(data);
         var groupId = jsonData.group_id;
         var userId = jsonData.user_id;
@@ -2039,8 +2099,6 @@ io.sockets.on('connection', function (client) {
                                             });
                                             callback();
                                         }, function () {
-
-
                                         });
                                     } else {
                                         //incase there are no members left in the group
@@ -2067,13 +2125,14 @@ io.sockets.on('connection', function (client) {
     });
 //    group Join Request
     client.on("groupJoinRequest", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
         var groupId = jsonMsg.group_id;
         var moderatorId;
         var jsonData = {};
         var jsonUserData = {};
+        var jsonResponseData = {};
         pool.getConnection(function (err, connection) {
             if (err)
             {
@@ -2113,8 +2172,16 @@ io.sockets.on('connection', function (client) {
                                     connection.query(strQueryGroupMembers, function (err, row) {
                                         if (err) {
                                             console.log(err);
-                                            throw err;
+//                                            throw err;
+                                            jsonResponseData.message = "data already exits";
+                                            jsonResponseData.status = 2;
+                                            var jsonString = JSON.stringify(jsonResponseData);
+                                            io.sockets.socket(client.id).emit("groupJoinRequestResponse", jsonString);
                                         } else {
+                                            jsonResponseData.message = "success";
+                                            jsonResponseData.status = 1;
+                                            var jsonString = JSON.stringify(jsonResponseData);
+                                            io.sockets.socket(client.id).emit("groupJoinRequestResponse", jsonString);
 
                                             UserSchema.find({
                                                 'userId': moderatorId
@@ -2176,7 +2243,7 @@ io.sockets.on('connection', function (client) {
         var jsonMsg = JSON.parse(msg);
         var status = jsonMsg.status;
         var user = jsonMsg.user_id;
-        var lastseen = Math.floor(Date.now() / 1000);
+        var lastseen = Math.floor(Date.now());
 
         UserSchema.find({
             'userId': user
@@ -2195,7 +2262,7 @@ io.sockets.on('connection', function (client) {
 
 //  remove a member from the group
     client.on("removeFromGroup", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
 
         var moderatorId = jsonMsg.moderator_id;
@@ -2309,7 +2376,7 @@ io.sockets.on('connection', function (client) {
 
 //  add a member to the group
     client.on("addMemberToGroup", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var group_members_list = [];
 
@@ -2503,7 +2570,7 @@ io.sockets.on('connection', function (client) {
 
 //  accept or reject group join request from the pingova user by moderator
     client.on("acceptOrRejectMemberRequest", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var group_members_list = [];
         var moderatorId = jsonMsg.moderator_id;
@@ -2919,7 +2986,7 @@ io.sockets.on('connection', function (client) {
         });
     });
 
-    //updating display name
+    //checks newly registered user
     client.on("checkUserData", function (msg) {
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
@@ -2998,7 +3065,7 @@ io.sockets.on('connection', function (client) {
 
     //deleting apingova account
     client.on("deleteAccount", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var user = jsonMsg.user_id;
         var moderatorId;
@@ -3220,7 +3287,7 @@ io.sockets.on('connection', function (client) {
     });
 
     client.on("blockUser", function (msg) {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var blockByUserId = jsonMsg.user_id;
         var blockToUserId = jsonMsg.block_user_id;
@@ -3346,7 +3413,7 @@ io.sockets.on('connection', function (client) {
     //to send message seen notification
     client.on("messageSeenStatus", function (msg)
     {
-        var receivedTime = Math.floor(Date.now() / 1000);
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
         var userFrom = jsonMsg.userfrom_id;
         var userTo = jsonMsg.userto_id;
@@ -3433,7 +3500,7 @@ io.sockets.on('connection', function (client) {
 
     //sending Message To the Group
     client.on("broadcastToAll", function (broadcastMsg) {
-        var receivedTime = "" + Math.floor(Date.now() / 1000);
+        var receivedTime = "" + Math.floor(Date.now());
         var jsonGroupMsg = JSON.parse(broadcastMsg);
         var userIdFrom = jsonGroupMsg.userfrom_id;
         var msgData = jsonGroupMsg.msg_data;

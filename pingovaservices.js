@@ -207,41 +207,41 @@ app.post('/upload-video', function (req, res) {
                 console.log(metadata);
                 if (err) {
                     console.log(err);
-                    throw err;
-                }
+                    res.send({status: 403, data: 'error occured'});
+                } else {
 //                var response = {
 //                    data1: obj,
 //                    data2: metadata
 //                };
-                var thumbpath = metadata.thumbnailsData[0].path;
-                var thumbname = thumbpath.split('#');
-                var video_thumb = 'private/uploaded/files/thumbnail' + thumbname[0];
-                //    var videopathThumb = uploadeddir + '/thumbnail' + thumbname[0];
-                //   console.log(videopathThumb);
-                // var fs = require("fs");
+                    var thumbpath = metadata.thumbnailsData[0].path;
+                    var thumbname = thumbpath.split('#');
+                    var video_thumb = 'private/uploaded/files/thumbnail' + thumbname[0];
+                    //    var videopathThumb = uploadeddir + '/thumbnail' + thumbname[0];
+                    //   console.log(videopathThumb);
+                    // var fs = require("fs");
 
 //                fs.readFile(videopathThumb, function (err, data) {
 //                    if (err)
 //                        throw err;
 //                    // Encode to base64
 //                    var encodedImage = new Buffer(data, 'binary').toString('base64');
-                //  console.log(encodedImage);
-                // Decode from base64
+                    //  console.log(encodedImage);
+                    // Decode from base64
 //                    var decodedImage = new Buffer(encodedImage, 'base64').toString('binary');
 //                    console.log(decodedImage);
 
-                var strQuery = "INSERT INTO media( stored_name, path, path_thumb , extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','" + video_thumb + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
-                //     console.log(strQuery);
-                con.query(strQuery, function (err, rows) {
-                    if (err) {
-                        console.log(err);
-                        res.send({status: 403, data: 'error occured'});
-                    }
-                    else {
-                        res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: video_thumb, extension: type, size: size});
-                    }
-                });
-
+                    var strQuery = "INSERT INTO media( stored_name, path, path_thumb , extension, size, media_type, last_accessed) VALUES ('" + name + "','/private/uploaded/files/" + name + "','" + video_thumb + "','" + type + "'," + size + ",'" + mediaType + "'," + lastAccessed + ")";
+                    //     console.log(strQuery);
+                    con.query(strQuery, function (err, rows) {
+                        if (err) {
+                            console.log(err);
+                            res.send({status: 403, data: 'error occured'});
+                        }
+                        else {
+                            res.send({status: 200, storedName: name, path: 'private/uploaded/files/' + name, path_thumb: video_thumb, extension: type, size: size});
+                        }
+                    });
+                }
                 //   });
 //              res.send(response);
             });
@@ -403,7 +403,7 @@ app.post('/upload-profile-pic/:id', function (req, res) {
     var uploader2 = libRequried(options2);
     var fs = require('fs');
     var userId = req.params.id;
-    console.log("userId::::"+userId);
+    console.log("userId::::" + userId);
 //    var userId = 213;
     uploader2.post(req, res, function (error, obj, redirect) {
         if (!error)
@@ -564,7 +564,7 @@ app.post('/generateVerificationCode', function (req, res) {
             }, function (err, message) {
                 if (err) {
                     console.log(err);
-                    if(err.status=== 400){
+                    if (err.status === 400) {
                         res.json({status: 403, data: 'The Number is not valid'});
                     }
                     res.json({status: 403, data: 'error occured'});
