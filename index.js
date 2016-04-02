@@ -14,7 +14,7 @@ var UserSchema = require('./models/userSchema.js');
 var MessagequeueSchema = require('./models/messagequeueSchema.js');
 var friendRequestSchema = require('./models/friendRequestSchema.js');
 // Build the connection string
-var dbURI = 'mongodb://localhost/ConnectionTest';
+var dbURI = 'mongodb://localhost/DBNAME';
 
 // Create the database connection
 mongoose.connect(dbURI);
@@ -43,14 +43,7 @@ process.on('SIGINT', function () {
 });
 
 
-//var pool = mysql.createPool({
-//    connectionLimit: 100, //important
-//    host: 'localhost',
-//    user: 'pingova',
-//    password: 'pNUNsGV8KRhPpEfM',
-//    database: 'pingova',
-//    debug: false
-//});
+
 
 var pool = mysql.createPool({
     connectionLimit: 100, //important
@@ -682,10 +675,12 @@ io.sockets.on('connection', function (client) {
                                                 else if (item.type === 8) {//join group request
                                                     var jsonmsg_data = JSON.parse(item.msg_data);
                                                     messagearray.message.push({
+                                                        "userid_from": item.send_by,
+                                                        "userid_to": item.userId_from,
                                                         "moderatorId": item.userId_to,
                                                         "type": item.type,
-                                                        "groupId": item.userId_from,
-                                                        "sentby_user_id": item.send_by,
+//                                                        "groupId": item.userId_from,
+//                                                        "sentby_user_id": item.send_by,
                                                         "timestamp": item.timestamp,
                                                         "user_data": jsonmsg_data
                                                     });
@@ -744,8 +739,8 @@ io.sockets.on('connection', function (client) {
 
                                                     messagearray.message.push({
                                                         "type": 14,
-                                                        "userto_id": item.userId_to,
-                                                        "userId_from": item.userId_from,
+                                                        "userid_to": item.userId_to,
+                                                        "userid_from": item.userId_from,
                                                         "msg_local_id": item.msg_localid,
                                                         "timestamp": item.timestamp
                                                     });
@@ -754,8 +749,8 @@ io.sockets.on('connection', function (client) {
 
                                                     messagearray.message.push({
                                                         "type": 15,
-                                                        "userto_id": item.userId_to,
-                                                        "userId_from": item.userId_from,
+                                                        "userid_to": item.userId_to,
+                                                        "userid_from": item.userId_from,
                                                         "msg_server_id": item.msg_serverid,
                                                         "msg_data": item.msg_data,
                                                         "timestamp": item.timestamp
@@ -765,8 +760,8 @@ io.sockets.on('connection', function (client) {
 
                                                     messagearray.message.push({
                                                         "type": 16,
-                                                        "userto_id": item.userfrom_id,
-                                                        "userId_from": item.userId_from,
+                                                        "userid_to": item.userfrom_id,
+                                                        "userid_from": item.userId_from,
                                                         "msg_server_id": item.msg_serverid,
                                                         "msg_data": item.msg_data,
                                                         "timestamp": item.timestamp
@@ -776,8 +771,8 @@ io.sockets.on('connection', function (client) {
                                                 else if (item.type === 17) { //pending friend request
                                                     messagearray.message.push({
                                                         "type": 17,
-                                                        "userto_id": item.userId_to,
-                                                        "userId_from": item.userId_from,
+                                                        "userid_to": item.userId_to,
+                                                        "userid_from": item.userId_from,
                                                         "msg_data": item.msg_data,
                                                         "timestamp": item.timestamp
 
@@ -2197,7 +2192,8 @@ io.sockets.on('connection', function (client) {
                                                         var socketid = doc[0].socketId;
                                                         console.log("socket id of opponent " + socketid);
                                                         jsonData.user_data = jsonUserData;
-                                                        jsonData.groupId = groupId;
+                                                        jsonData.userid_to = groupId;
+                                                        jsonData.userid_from = user;
                                                         jsonData.moderatorId = moderatorId;
                                                         jsonData.timestamp = receivedTime;
                                                         var jsonString = JSON.stringify(jsonData);
@@ -2408,7 +2404,12 @@ io.sockets.on('connection', function (client) {
                             connection.query(strQuery, function (err, row) {
                                 if (err) {
                                     console.log(err);
-                                    throw err;
+                                    jsonMessage.status = 2;
+                                    jsonMessage.message = "data already exists";
+                                    jsonMessage.timestamp = receivedTime;
+                                    var jsonString = JSON.stringify(jsonMessage);
+                                    io.sockets.socket(client.id).emit("addMemberToGroupNotification", jsonString);
+//                                    throw err;
                                 } else {
                                     var jsonUserData = {};
                                     var getUserDataQuery = "SELECT * FROM users WHERE userid=" + user;
@@ -2469,6 +2470,7 @@ io.sockets.on('connection', function (client) {
                                                                     console.log("socket id of opponent " + socketid);
                                                                     if (io.sockets.sockets[socketid] !== undefined)
                                                                     {//user connected to node server
+                                                                        jsonMessage.status = 1;
                                                                         jsonMessage.moderator_id = moderatorId;
                                                                         jsonMessage.group_id = groupId;
                                                                         jsonMessage.user_data = jsonUserData;
@@ -2553,8 +2555,8 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         } else {
-                            jsonMessage.error = 101;
-                            jsonMessage.msg = "the requested user is not a moderator";
+                            jsonMessage.status = 2;
+                            jsonMessage.message = "the requested user is not a moderator";
                             jsonMessage.timestamp = receivedTime;
                             var stringMessage = JSON.stringify(jsonMessage);
                             io.sockets.socket(client.id).emit("addMemberToGroupNotification", stringMessage);
