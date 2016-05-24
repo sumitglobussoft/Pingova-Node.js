@@ -13,7 +13,12 @@ var mysql = require('mysql');
      password: 'root',
      database: 'pingova'
  });
-
+//var con = mysql.createConnection({
+//  host: 'localhost',
+//  user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
+//    database: 'pingova'
+//});
 
 con.connect(function(err){
   if(err){

@@ -14,7 +14,7 @@ var UserSchema = require('./models/userSchema.js');
 var MessagequeueSchema = require('./models/messagequeueSchema.js');
 var friendRequestSchema = require('./models/friendRequestSchema.js');
 // Build the connection string
-var dbURI = 'mongodb://localhost/DBNAME';
+var dbURI = 'mongodb://localhost/ConnectionTest';
 
 // Create the database connection
 mongoose.connect(dbURI);
@@ -103,6 +103,7 @@ io.sockets.on('connection', function (client) {
             //SELECT * FROM `blocklist` WHERE ( `user_id`=103 and `blocked_user_id`=109 ) or ( `user_id`=109 and `blocked_user_id`=103 )
             var strQuery = "SELECT * FROM blocklist WHERE ( user_id=" + user + " and blocked_user_id=" + userfrom + ") OR ( user_id=" + userfrom + " and blocked_user_id=" + user + " )";
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     throw err;
                 } else {
@@ -778,6 +779,16 @@ io.sockets.on('connection', function (client) {
 
                                                     });
                                                 }
+                                                else if (item.type === 18) { //change number
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                        "type": item.type,
+                                                        "group_id": item.userId_from,
+                                                        "user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_data": item.msg_data
+                                                    });
+                                                }
 
                                             }
                                             callback();
@@ -1405,11 +1416,14 @@ io.sockets.on('connection', function (client) {
                         } else {
                             if (doc.length > 0) {
                                 console.log("++++++++++++request_status+++++++++++++++");
-                                doc[0].status = request_status;
-                                doc[0].timestamp = receivedTime;
-                                doc[0].save();
 
-                                if (request_status === '1') {
+                                if (request_status === '2') { //deleting the entry from db changes done on 19th may
+                                    doc[0].remove();
+                                }
+                                else if (request_status === '1') {
+                                    doc[0].status = request_status;
+                                    doc[0].timestamp = receivedTime;
+                                    doc[0].save();
                                     pool.getConnection(function (err, connection) {
                                         if (err)
                                         {
@@ -2033,7 +2047,7 @@ io.sockets.on('connection', function (client) {
                                             var item = groupinfo[Math.floor(Math.random() * groupinfo.length)];
                                             moderatorId = item.user_id;
                                             console.log("moderatorId:::::::::::" + moderatorId);
-                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId;
+                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId + " and group_id = " + groupId;
                                             console.log(strQuery);
                                             connection.query(strQuery, function (err, admininfo) {
                                                 if (err) {
@@ -2291,7 +2305,7 @@ io.sockets.on('connection', function (client) {
                                     throw err;
                                 } else {
                                     //deleting the record 
-                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user + " and request_status = 1";
+                                    var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user;
                                     console.log(strQuery);
                                     connection.query(strQuery, function (err, row) {
                                         if (err) {
@@ -2748,6 +2762,9 @@ io.sockets.on('connection', function (client) {
                                             }
                                         });
                                     } else if (requestStatus === '2') {
+                                        //deleting the rejected user data from groupuser as he can request again
+                                        var deleteentry = "DELETE from groupusers where group_id =" + groupId + " and request_status=2 and user_id =" + user;
+                                        connection.query(deleteentry);
 
                                         var groupJoinResponseData = '{"request_status":"2", "timestamp":"' + receivedTime + '"}';
 
@@ -3114,8 +3131,7 @@ io.sockets.on('connection', function (client) {
                                             var jsonString = JSON.stringify(jsonData);
 //                                            io.sockets.socket(client.id).emit("leaveGroupNotification", jsonString);
                                             //querying DB to get full details of member of that group to notify them
-                                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupinfoeach.group_id;
-                                            +" and request_status = 1";
+                                            var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupinfoeach.group_id + " and request_status = 1";
                                             console.log(strQuery);
                                             connection.query(strQuery, function (err, groupinfo) {
                                                 if (err) {
@@ -3134,7 +3150,7 @@ io.sockets.on('connection', function (client) {
                                                             var item = groupinfo[Math.floor(Math.random() * groupinfo.length)];
                                                             moderatorId = item.user_id;
                                                             console.log("moderatorId:::::::::::" + moderatorId);
-                                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId;
+                                                            var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId + " and group_id = " + groupinfoeach.group_id; //edited here 18 may
                                                             console.log(strQuery);
                                                             connection.query(strQuery, function (err, admininfo) {
                                                                 if (err) {
@@ -3481,6 +3497,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_displayname ='" + contactdisplayname + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -3493,12 +3510,131 @@ io.sockets.on('connection', function (client) {
                     } else {
                         myarr = '{"updated_status":"0"}';
                     }
-                    io.sockets.socket(client.id).emit("updateContactDisplaynameResponse", myarr);
+                    io.sockets.socket(client.id).emit("updateContactDisplaynameResponse", JSON.str);
                 }
             });
         });
     });
 
+    //updating status
+    client.on("updateContactNumber", function (msg) {
+        var receivedTime = Math.floor(Date.now());
+        var jsonMsg = JSON.parse(msg);
+        var user = jsonMsg.user_id;
+        var newContactNumber = jsonMsg.new_contact_number;
+        var oldContactNumber = jsonMsg.old_contact_number;
+        var mainjsonobject1 = {};
+        mainjsonobject1.user_id = user;
+        mainjsonobject1.new_contact_number = newContactNumber;
+        mainjsonobject1.old_contact_number = oldContactNumber;
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "UPDATE users SET phone_no =" + newContactNumber + " WHERE userid = " + user + " and phone_no = " + oldContactNumber;
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    console.log(err);
+//                    throw err;
+                } else {
+                    console.log(rows);
+                    console.log(rows.affectedRows);
+                    if (rows.affectedRows > 0) {
+                        mainjsonobject1.updated_contact_number = 1;
+                        //searching if the user was in any group and its data
+                        var strQuery = "SELECT * FROM groupusers,users WHERE group_id=userid and user_id= " + user;
+                        console.log(strQuery);
+                        connection.query(strQuery, function (err, groupinfo) {
+                            if (err) {
+                                console.log(err);
+                            } else {
+                                async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
+                                {
+                                    //querying DB to get full details of member of that group to notify them
+                                    var strQuery = "SELECT * FROM groupusers WHERE group_id=" + groupinfoeach.group_id + " and request_status = 1";
+                                    console.log(strQuery);
+                                    connection.query(strQuery, function (err, memberinfo) {
+                                        if (err) {
+                                            console.log(err);
+                                            throw err;
+                                        } else {
+                                            async.forEachSeries(memberinfo, function (eachmember, callback)
+                                            {
+                                                console.log(eachmember.user_id + "==================" + user);
+                                                if ("" + eachmember.user_id !== user) {
+                                                    console.log("in");
+                                                    //to get socket id
+                                                    UserSchema.find({
+                                                        'userId': eachmember.user_id
+                                                    }, function (err, doc) {
+                                                        if (err)
+                                                        {
+                                                            console.log("error in getting user details");
+                                                            return err;
+                                                        } else {
+                                                            if (doc.length > 0) {
+                                                                var socketid = doc[0].socketId;
+                                                                console.log(eachmember.user_id + "and socket id of opponent " + socketid);
+
+                                                                var mainjsonobject = {};
+                                                                mainjsonobject.user_id = user;
+                                                                mainjsonobject.new_contact_number = newContactNumber;
+                                                                mainjsonobject.old_contact_number = oldContactNumber;
+                                                                mainjsonobject.group_id = groupinfoeach.group_id;
+                                                                mainjsonobject.timestamp = receivedTime;
+
+                                                                var jsonString = JSON.stringify(mainjsonobject);
+                                                                if (io.sockets.sockets[socketid] !== undefined)
+                                                                {//user connected to node server
+
+                                                                    io.sockets.socket(socketid).emit("numberUpdateNotification", jsonString);
+                                                                } else//When user is not connected to node server
+                                                                {
+                                                                    var newqueuemessage = new MessagequeueSchema({
+                                                                        type: 18,
+                                                                        userId_to: eachmember.user_id,
+                                                                        userId_from: groupinfoeach.group_id,
+                                                                        send_by: user,
+                                                                        timestamp: receivedTime,
+                                                                        msg_data: jsonString
+                                                                    });
+                                                                    newqueuemessage.save(function (err) {
+                                                                        if (err) {
+                                                                            return err;
+                                                                        } else {
+                                                                            console.log("New message  added in queue !");
+                                                                        }
+                                                                    });
+                                                                }
+                                                            }
+                                                        }
+                                                    });
+                                                }
+                                                callback();
+                                            }, function () {
+                                                callback_1();
+                                            });
+                                        }
+                                    });
+                                }, function () {
+                                    connection.release();
+                                });
+                            }
+                        });
+                    } else {
+                        mainjsonobject1.updated_contact_number = 0;
+                    }
+                    var jsonString = JSON.stringify(mainjsonobject1);
+                    io.sockets.socket(client.id).emit("updateContactNumberResponse", jsonString);
+                }
+            });
+        });
+    });
 
     //sending Message To the Group
     client.on("broadcastToAll", function (broadcastMsg) {

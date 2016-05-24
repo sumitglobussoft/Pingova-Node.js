@@ -10,7 +10,7 @@ var deleteMedia = new CronJob({
     onTick: function () {
         /*
          * Runs every weekday (Monday through Sunday)
-         * at 10:30:00 PM. 
+         * at 3:30:00 AM. 
          */
         var fs = require('fs');
         console.log("hiiii");
