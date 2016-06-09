@@ -43,16 +43,24 @@ process.on('SIGINT', function () {
 });
 
 
-
-
 var pool = mysql.createPool({
     connectionLimit: 100, //important
     host: 'localhost',
-    user: 'root',
-    password: 'root',
+    user: 'pingova',
+    password: 'pNUNsGV8KRhPpEfM',
     database: 'pingova',
     debug: false
 });
+
+
+//var pool = mysql.createPool({
+//    connectionLimit: 100, //important
+//    host: 'localhost',
+//    user: 'root',
+//    password: 'root',
+//    database: 'pingova',
+//    debug: false
+//});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -343,6 +351,7 @@ io.sockets.on('connection', function (client) {
             }
             var strQuery = "SELECT * FROM 'User' WHERE phoneno=" + jsonMsg.phone_no;
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     throw err;
                 } else {
@@ -364,6 +373,7 @@ io.sockets.on('connection', function (client) {
             var Query = "SELECT * FROM users WHERE phone_no IN " + msg;
             console.log(Query);
             connection.query(Query, function (err, rows) {
+                connection.release();
                 if (err) {
                     throw err;
                 } else
@@ -959,6 +969,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "SELECT * FROM users WHERE contact_isgroup = 0 and pin_no like '%" + pin + "%' and  userid not in ( SELECT `user_id` FROM `blocklist` WHERE `blocked_user_id` = " + userId + " UNION  SELECT `blocked_user_id` FROM `blocklist` WHERE `user_id` =" + userId + " ) and userid!=" + userId + "  UNION SELECT * FROM users WHERE contact_isgroup = 1 and contact_isnovisible = 1 and  pin_no like '%" + pin + "%'";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
                     io.sockets.socket(client.id).emit("searchUserPinResponse", members_list);
@@ -1035,6 +1046,7 @@ io.sockets.on('connection', function (client) {
             //SELECT * FROM `blocklist` WHERE ( `user_id`=103 and `blocked_user_id`=109 ) or ( `user_id`=109 and `blocked_user_id`=103 )
             var strQuery = "SELECT * FROM blocklist WHERE ( user_id=" + user + " and blocked_user_id=" + userfrom + ") OR ( user_id=" + userfrom + " and blocked_user_id=" + user + " )";
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     throw err;
                 } else {
@@ -1098,6 +1110,7 @@ io.sockets.on('connection', function (client) {
             //SELECT * FROM `blocklist` WHERE ( `user_id`=103 and `blocked_user_id`=109 ) or ( `user_id`=109 and `blocked_user_id`=103 )
             var strQuery = "SELECT * FROM blocklist WHERE ( user_id=" + user + " and blocked_user_id=" + userFrom + ") OR ( user_id=" + userFrom + " and blocked_user_id=" + user + " )";
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     throw err;
                 } else {
@@ -1151,6 +1164,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_status ='" + contactStatus + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -1186,6 +1200,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_isnovisible =" + numberVisibility + " WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
                     throw err;
@@ -1266,6 +1281,7 @@ io.sockets.on('connection', function (client) {
                                             var userinfoQuery = "Select * FROM users WHERE userid=" + userfrom_id; //getting the information of user who requested to join group
                                             console.log(userinfoQuery);
                                             connection.query(userinfoQuery, function (err, userinfo) {
+                                                connection.release();
                                                 if (err) {
                                                     console.log(err);
                                                     throw err;
@@ -1437,6 +1453,7 @@ io.sockets.on('connection', function (client) {
                                         var strQuery = "SELECT * FROM users WHERE userid = " + userto_id + " or userid = " + userfrom_id;
                                         console.log(strQuery);
                                         connection.query(strQuery, function (err, friendsData) {
+                                            connection.release();
                                             if (err) {
                                                 console.log(err);
                                                 //throw err;
@@ -1715,6 +1732,7 @@ io.sockets.on('connection', function (client) {
                                                     });
                                                     callback();
                                                 }, function () {
+                                                    connection.release();
                                                     // io.sockets.socket(client.id).emit("receiveFriendRequest", friendrequestarray);
                                                 });
                                             });
@@ -1722,6 +1740,7 @@ io.sockets.on('connection', function (client) {
                                     });
                                 }
                                 else {
+                                    connection.release();
                                     io.sockets.socket(client.id).emit("groupCreation", "invalid groupID");
                                 }
                             }
@@ -1754,6 +1773,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "SELECT * FROM groupusers WHERE group_id = " + groupId + " and request_status = 1";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
                     throw err;
@@ -1979,6 +1999,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         }, function () {
+                            connection.release();
 
                             group_full_data.group_full_data = group_full_info;
                             console.log(group_full_data);
@@ -2009,6 +2030,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, admininfo) {
                 if (err) {
+                    connection.release();
                     console.log(err);
                     throw err;
                 } else {
@@ -2017,6 +2039,7 @@ io.sockets.on('connection', function (client) {
                     console.log(strQuery);
                     connection.query(strQuery, function (err, row) {
                         if (err) {
+                            connection.release();
                             console.log(err);
                             throw err;
                         } else {
@@ -2031,6 +2054,7 @@ io.sockets.on('connection', function (client) {
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
+                                    connection.release();
                                     console.log(err);
                                     throw err;
                                 } else {
@@ -2050,6 +2074,7 @@ io.sockets.on('connection', function (client) {
                                             var strQuery = "Update groupusers SET is_moderator=1 WHERE user_id=" + moderatorId + " and group_id = " + groupId;
                                             console.log(strQuery);
                                             connection.query(strQuery, function (err, admininfo) {
+                                                connection.release();
                                                 if (err) {
                                                     moderatorId = 1234;
                                                     console.log(err);
@@ -2059,6 +2084,7 @@ io.sockets.on('connection', function (client) {
                                             });
                                         }
                                         else {
+                                            connection.release();
                                             console.log("falseeeeeeeeeeeeee");
                                             moderatorId = admininfo[0].user_id;
                                         }
@@ -2115,6 +2141,7 @@ io.sockets.on('connection', function (client) {
                                         var strQuery = "DELETE FROM users WHERE userid=" + groupId;
                                         console.log(strQuery);
                                         connection.query(strQuery, function (err, row) {
+                                            connection.release();
                                             if (err) {
                                                 console.log(err);
                                                 throw err;
@@ -2153,6 +2180,7 @@ io.sockets.on('connection', function (client) {
             console.log(userinfoQuery);
             connection.query(userinfoQuery, function (err, userinfo) {
                 if (err) {
+                    connection.release();
                     console.log(err);
                     throw err;
                 } else {
@@ -2169,6 +2197,7 @@ io.sockets.on('connection', function (client) {
                         console.log(admininfoQuery);
                         connection.query(admininfoQuery, function (err, admininfo) {
                             if (err) {
+                                connection.release();
                                 console.log(err);
                                 throw err;
                             } else {
@@ -2179,8 +2208,9 @@ io.sockets.on('connection', function (client) {
                                     var strQueryGroupMembers = "INSERT INTO groupusers SET group_id =" + groupId + " , user_id =" + user + ", is_moderator=0, request_status=0";
                                     console.log(strQueryGroupMembers);
                                     connection.query(strQueryGroupMembers, function (err, row) {
+                                        connection.release();
                                         if (err) {
-                                            console.log(err);
+                                             console.log(err);
 //                                            throw err;
                                             jsonResponseData.message = "data already exits";
                                             jsonResponseData.status = 2;
@@ -2289,6 +2319,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, moderatorinfo) {
                 if (err) {
+                    connection.release();
                     console.log(err);
                     throw err;
                 } else {
@@ -2301,6 +2332,7 @@ io.sockets.on('connection', function (client) {
                             console.log(strQuery);
                             connection.query(strQuery, function (err, groupinfo) {
                                 if (err) {
+                                    connection.release();
                                     console.log(err);
                                     throw err;
                                 } else {
@@ -2308,6 +2340,7 @@ io.sockets.on('connection', function (client) {
                                     var strQuery = "DELETE FROM groupusers WHERE group_id=" + groupId + " and user_id=" + user;
                                     console.log(strQuery);
                                     connection.query(strQuery, function (err, row) {
+                                        connection.release();
                                         if (err) {
                                             console.log(err);
                                             throw err;
@@ -2370,6 +2403,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         } else {
+                            connection.release();
                             jsonMessage.error = 101;
                             jsonMessage.msg = "the requested user is not a moderator";
                             var stringMessage = JSON.stringify(jsonMessage);
@@ -2404,6 +2438,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, moderatorinfo) {
                 if (err) {
+                    connection.release();
                     console.log(err);
                     throw err;
                 } else {
@@ -2417,6 +2452,7 @@ io.sockets.on('connection', function (client) {
                             console.log(strQuery);
                             connection.query(strQuery, function (err, row) {
                                 if (err) {
+                                    connection.release();
                                     console.log(err);
                                     jsonMessage.status = 2;
                                     jsonMessage.message = "data already exists";
@@ -2518,6 +2554,7 @@ io.sockets.on('connection', function (client) {
                                                     }
                                                     callback();
                                                 }, function () {
+                                                    connection.release();
                                                     console.log("in function========================");
                                                     var groupmembesdata = JSON.stringify(group_members_list);
                                                     var groupCreationData = '{"group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","group_created_by":"' + moderatorinfo[0].created_by + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
@@ -2569,6 +2606,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         } else {
+                            connection.release();
                             jsonMessage.status = 2;
                             jsonMessage.message = "the requested user is not a moderator";
                             jsonMessage.timestamp = receivedTime;
@@ -2577,6 +2615,7 @@ io.sockets.on('connection', function (client) {
                         }
                     }
                     else {
+                        connection.release();
                         console.log("Moderator is not present in the group"); //this situation will never arise
                     }
                 }
@@ -2604,6 +2643,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, moderatorinfo) {
                 if (err) {
+                    connection.release();
                     console.log(err);
                     throw err;
                 } else {
@@ -2617,6 +2657,7 @@ io.sockets.on('connection', function (client) {
                             console.log(strQuery);
                             connection.query(strQuery, function (err, row) {
                                 if (err) {
+                                    connection.release();
                                     console.log(err);
                                     throw err;
                                 } else {
@@ -2712,6 +2753,7 @@ io.sockets.on('connection', function (client) {
                                                         }
                                                         callback();
                                                     }, function () {
+                                                        connection.release();
                                                         console.log("in function========================");
                                                         var groupmembesdata = JSON.stringify(group_members_list);
                                                         var groupCreationData = '{"request_status":"1","group_name":"' + moderatorinfo[0].contact_displayname + '","group_id":"' + groupId + '","group_pin":"' + moderatorinfo[0].pin_no + '","group_profilepic":"' + moderatorinfo[0].contact_profilepic + '","group_profilepicthumb":"' + moderatorinfo[0].contact_profilepicthumb + '","group_isvisible":"' + moderatorinfo[0].contact_isnovisible + '","group_timestamp":"' + moderatorinfo[0].created_time + '","group_created_by":"' + moderatorinfo[0].created_by + '","moderator_id":"' + moderatorinfo[0].user_id + '","timestamp":"' + receivedTime + '","arrayGroupMembers":' + groupmembesdata + '}';
@@ -2765,6 +2807,7 @@ io.sockets.on('connection', function (client) {
                                         //deleting the rejected user data from groupuser as he can request again
                                         var deleteentry = "DELETE from groupusers where group_id =" + groupId + " and request_status=2 and user_id =" + user;
                                         connection.query(deleteentry);
+                                        connection.release();
 
                                         var groupJoinResponseData = '{"request_status":"2", "timestamp":"' + receivedTime + '"}';
 
@@ -2813,6 +2856,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         } else {
+                            connection.release();
                             jsonMessage.error = 101;
                             jsonMessage.msg = "the requested user is not a moderator";
                             var stringMessage = JSON.stringify(jsonMessage);
@@ -2820,6 +2864,7 @@ io.sockets.on('connection', function (client) {
                         }
                     }
                     else {
+                        connection.release();
                         console.log("Moderator is not present in the group"); //this situation will never arise
                     }
                 }
@@ -2842,6 +2887,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_lastseen_visibility ='" + visibilityLastseen + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -2875,6 +2921,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_status_visibility ='" + visibilityStatus + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -2908,6 +2955,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_privacy_pic ='" + visibilityProfilePic + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -2944,6 +2992,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "SELECT * FROM users WHERE userid in (" + arrayMembers + ")";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -2987,6 +3036,7 @@ io.sockets.on('connection', function (client) {
             var strQuery = "UPDATE users SET contact_displayname ='" + displayName + "' WHERE userid = " + user;
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
+                connection.release();
                 if (err) {
                     console.log(err);
 //                    throw err;
@@ -3021,6 +3071,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, groupinfo) {
                 if (err) {
+                    connection.release();
                     console.log("err:::" + err);
                     throw err;
                 } else {
@@ -3071,6 +3122,7 @@ io.sockets.on('connection', function (client) {
                                 }
                             });
                         }, function () {
+                            connection.release();
                             group_full_data.group_full_data = group_full_info;
                             console.log(group_full_data);
 //                          group_data.group_members = group_members;
@@ -3100,6 +3152,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, groupinfo) {
                 if (err) {
+                     connection.release();
                     console.log("err:::" + err);
                     throw err;
                 } else {
@@ -3238,6 +3291,7 @@ io.sockets.on('connection', function (client) {
                             var deleteQuery = "DELETE FROM users WHERE userid= " + user;
                             console.log(deleteQuery);
                             connection.query(deleteQuery, function (err, deleteinfo) {
+                                 connection.release();
                                 if (err) {
                                     console.log("err:::" + err);
                                     throw err;
@@ -3271,6 +3325,7 @@ io.sockets.on('connection', function (client) {
                         var deleteQuery = "DELETE FROM users WHERE userid= " + user;
                         console.log(deleteQuery);
                         connection.query(deleteQuery, function (err, deleteinfo) {
+                             connection.release();
                             if (err) {
                                 console.log("err:::" + err);
                                 throw err;
@@ -3322,6 +3377,7 @@ io.sockets.on('connection', function (client) {
                 var blockQuery = "INSERT IGNORE INTO blocklist SET user_id=" + blockByUserId + ", blocked_user_id =" + blockToUserId;
                 console.log(blockQuery);
                 connection.query(blockQuery, function (err, userinfo) {
+                     connection.release();
                     if (err) {
                         console.log(err);
                         throw err;
@@ -3375,6 +3431,7 @@ io.sockets.on('connection', function (client) {
                 var blockQuery = "DELETE from blocklist where user_id=" + blockByUserId + " and  blocked_user_id =" + blockToUserId;
                 console.log(blockQuery);
                 connection.query(blockQuery, function (err, userinfo) {
+                     connection.release();
                     if (err) {
                         console.log(err);
                         throw err;
@@ -3539,6 +3596,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
                 if (err) {
+                    connection.release();
                     console.log(err);
 //                    throw err;
                 } else {
@@ -3551,6 +3609,7 @@ io.sockets.on('connection', function (client) {
                         console.log(strQuery);
                         connection.query(strQuery, function (err, groupinfo) {
                             if (err) {
+                                connection.release();
                                 console.log(err);
                             } else {
                                 async.forEachSeries(groupinfo, function (groupinfoeach, callback_1)
@@ -3627,6 +3686,7 @@ io.sockets.on('connection', function (client) {
                             }
                         });
                     } else {
+                        connection.release();
                         mainjsonobject1.updated_contact_number = 0;
                     }
                     var jsonString = JSON.stringify(mainjsonobject1);
