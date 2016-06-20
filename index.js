@@ -799,7 +799,29 @@ io.sockets.on('connection', function (client) {
                                                         "msg_data": item.msg_data
                                                     });
                                                 }
-
+                                                else if (item.type === 19) { //pingToPeepNotification
+                                                    messagearray.message.push({
+                                                        "userid_to": item.userId_to,
+                                                         "userid_from": item.userId_from,
+                                                        "type": item.type,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_data": item.msg_data,
+//                                                         "msg_local_id": item.msg_localid,
+                                                         "msg_type": item.msg_type,
+                                                         "msg_server_id": item.msg_serverid
+                                                    });
+                                                }
+                                                if (item.type === 20)//pingToPeepAck
+                                                {
+                                                    messagearray.message.push({
+                                                        "type": item.type,
+                                                        "userid_to": item.userId_to,
+//                                                        "msg_local_id": item.msg_localid,
+                                                        "msg_server_id": item.msg_serverid,
+                                                        "timestamp": item.timestamp,
+                                                        "msg_status": "1"
+                                                    });
+                                                }
                                             }
                                             callback();
                                         }, function () {
@@ -2210,7 +2232,7 @@ io.sockets.on('connection', function (client) {
                                     connection.query(strQueryGroupMembers, function (err, row) {
                                         connection.release();
                                         if (err) {
-                                             console.log(err);
+                                            console.log(err);
 //                                            throw err;
                                             jsonResponseData.message = "data already exits";
                                             jsonResponseData.status = 2;
@@ -3152,7 +3174,7 @@ io.sockets.on('connection', function (client) {
             console.log(strQuery);
             connection.query(strQuery, function (err, groupinfo) {
                 if (err) {
-                     connection.release();
+                    connection.release();
                     console.log("err:::" + err);
                     throw err;
                 } else {
@@ -3291,7 +3313,7 @@ io.sockets.on('connection', function (client) {
                             var deleteQuery = "DELETE FROM users WHERE userid= " + user;
                             console.log(deleteQuery);
                             connection.query(deleteQuery, function (err, deleteinfo) {
-                                 connection.release();
+                                connection.release();
                                 if (err) {
                                     console.log("err:::" + err);
                                     throw err;
@@ -3325,7 +3347,7 @@ io.sockets.on('connection', function (client) {
                         var deleteQuery = "DELETE FROM users WHERE userid= " + user;
                         console.log(deleteQuery);
                         connection.query(deleteQuery, function (err, deleteinfo) {
-                             connection.release();
+                            connection.release();
                             if (err) {
                                 console.log("err:::" + err);
                                 throw err;
@@ -3377,7 +3399,7 @@ io.sockets.on('connection', function (client) {
                 var blockQuery = "INSERT IGNORE INTO blocklist SET user_id=" + blockByUserId + ", blocked_user_id =" + blockToUserId;
                 console.log(blockQuery);
                 connection.query(blockQuery, function (err, userinfo) {
-                     connection.release();
+                    connection.release();
                     if (err) {
                         console.log(err);
                         throw err;
@@ -3431,7 +3453,7 @@ io.sockets.on('connection', function (client) {
                 var blockQuery = "DELETE from blocklist where user_id=" + blockByUserId + " and  blocked_user_id =" + blockToUserId;
                 console.log(blockQuery);
                 connection.query(blockQuery, function (err, userinfo) {
-                     connection.release();
+                    connection.release();
                     if (err) {
                         console.log(err);
                         throw err;
@@ -3846,4 +3868,170 @@ io.sockets.on('connection', function (client) {
 
         });
     });
+
+    //sending video in p2p
+    client.on("pingToPeepMessage", function (groupMsg) {
+        var receivedTime = "" + Math.floor(Date.now());
+        var jsonGroupMsg = JSON.parse(groupMsg);
+        var userOrGroupIds = jsonGroupMsg.userto_id; // list of ids will be sent
+        var userIdFrom = jsonGroupMsg.userfrom_id;
+        var msgData = jsonGroupMsg.msg_data;
+      //  var msgType = jsonGroupMsg.msg_type;
+        var type = 19;
+      //  var msgLocalId = jsonGroupMsg.msg_local_id;
+        var allUserIds = [];
+
+        var myarr = '{"status":"1","userid_to":"' + userOrGroupIds + '","timestamp":"' + receivedTime + '"}';
+
+
+        if (io.sockets.socket(client.id) !== undefined)
+        {
+            console.log("**socket id is valid for sending message user**");
+            io.sockets.socket(client.id).emit("pingToPeepAck", myarr);
+        } else
+        {
+            console.log("**socket id is not valid for sending message user**");
+            var newqueuemessage = new MessagequeueSchema({
+                type: 20,
+                userId_to: userIdFrom,
+                msg_serverid: 11,
+                msg_type: 2,
+//                msg_localid: msgLocalId,
+                msg_data: msgData,
+                timestamp: receivedTime
+            });
+            newqueuemessage.save(function (err) {
+                if (err) {
+                    return err;
+                } else {
+                    console.log("New message  added in queue !");
+                }
+            });
+        }
+
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+
+            var strQuery = "SELECT * FROM users WHERE userid in (" + userOrGroupIds + ")";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                connection.release();
+                if (err) {
+                    console.log(err);
+                    throw err;
+                } else {
+                    async.forEachSeries(rows, function (item, callback1)
+                    {
+                        if (item.contact_isgroup === 1) {
+                            var selectGroupMembersQuery = "select * from groupusers where request_status = 1 and group_id=" + item.userid;
+                            connection.query(selectGroupMembersQuery, function (err, members) {
+                                async.forEachSeries(members, function (member, callback2)
+                                {
+                                    if ("" + member.user_id !== userIdFrom) {
+                                        allUserIds.push(member.user_id);
+                                    }
+                                    callback2();
+                                }, function () {
+                                    callback1();
+                                });
+                            });
+                        }
+                        else {
+                            allUserIds.push(item.userid);
+                            callback1();
+                        }
+
+                    }, function () {
+                        console.log("allUserIds::::");
+                        console.log(allUserIds);
+
+                        async.forEachSeries(allUserIds, function (item, callback)
+                        {
+                            console.log("****************************************");
+                            console.log("****************" + item + "****************");
+
+                            var jsonData = {};
+//                            jsonData.msg_local_id = msgLocalId;
+                            jsonData.msg_type = 2;
+                            jsonData.msg_data = msgData;
+                            jsonData.userfrom_id = userIdFrom;
+                            jsonData.userto_id = item;
+                            jsonData.timestamp = receivedTime;
+                            jsonData.type = type;
+                            //send to each  
+
+                            pingToPeepMessageFun(jsonData);
+
+                            callback();
+                        }, function () {
+
+                        });
+                    });
+                }
+            });
+        });
+    });
+
+    //sending message to group function
+    var pingToPeepMessageFun = function (message) {
+        console.log("groupMessage::::::::::::::::::::::::::::" + message);
+        var test = JSON.stringify(message);
+        console.log("test::::::::::::::::::::::::::::" + test);
+        var jsonMsg = JSON.parse(test);
+        console.log("jsonMsg::::::::::::::::::::::::::::" + jsonMsg);
+        var user = jsonMsg.userto_id;
+        UserSchema.find({
+            'userId': user
+        }, function (err, doc) {
+            if (err)
+            {
+                console.log("error in getting user details");
+                return err;
+            } else {
+                console.log("Length of doc is " + doc.length);
+                //save message in the database
+                var messagedata = jsonMsg.msg_data;
+                console.log(typeof messagedata);
+                if ((typeof messagedata) === "object")
+                {
+                    messagedata = JSON.stringify(messagedata);
+                }
+                console.log("messagedata::::::::" + messagedata);
+
+                var newqueuemessage = new MessagequeueSchema({
+                    type: 19,
+                    userId_to: jsonMsg.userto_id,
+                    userId_from: jsonMsg.userfrom_id,
+                    msg_type: jsonMsg.msg_type,
+                    msg_data: messagedata,
+                    msg_status: 1,
+//                    msg_localid: jsonMsg.msg_local_id,
+                    timestamp: jsonMsg.timestamp,
+                    msg_serverid: 11
+                });
+                newqueuemessage.save(function (err) {
+                    if (err) {
+                        return err;
+                    } else {
+                        console.log("New message  added in queue !");
+                    }
+                });
+                if (doc.length > 0) {
+                    // if user is present, then update his socket id					
+                    var socketid = doc[0].socketId;
+                    console.log("socket id of opponent " + socketid);
+                    if (io.sockets.sockets[socketid] !== undefined)
+                    {//user connected to node server
+                        io.sockets.socket(socketid).emit("pingToPeepNotification", test);
+                    }
+                }
+            }
+        });
+    };
 });

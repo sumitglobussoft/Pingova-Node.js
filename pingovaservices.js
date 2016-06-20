@@ -6,6 +6,7 @@ var math = require('mathjs');
 var app = express();
 var async = require('async');
 app.use(bodyParser.json());
+var randtoken = require('rand-token');
 //app.use(express.urlencoded());
 app.use(bodyParser.urlencoded({// to support URL-encoded bodies
     extended: true
@@ -605,6 +606,255 @@ app.post('/verifyCode', function (req, res) {
         }
     });
 });
+
+
+// admin services
+app.post('/admin/login', function (req, res) {
+    console.log("inside log");
+    console.log(req.body);
+    var username = req.body.username;
+    var password = req.body.password;
+    if ((username !== null) && (username.length > 0)) {
+        if ((password !== null) && (password.length > 0)) {
+
+
+            var selectAdmin = "SELECT * from admininfo where USERNAME='" + username + "' and password = '" + password + "'";
+
+            con.query(selectAdmin, function (err, rows) {
+                if (err) {
+                    res.json({status: 403, data: 'Error fetching data'});
+                } else {
+                    if (rows.length > 0) {
+                        console.log("successfully logged in");
+                        // Generate a 16 character alpha-numeric token:
+                        var token = randtoken.generate(16);
+                        var updateAdminTokenQuery = "UPDATE admininfo SET TOKEN = '" + token + "' where USERNAME='" + username + "' and password = '" + password + "'";
+                        con.query(updateAdminTokenQuery, function (err, rows1) {
+                            if (err) {
+                                res.json({status: 403, data: 'Error fetching data'});
+                            } else {
+                                var admindata = {};
+
+                                admindata.status = 200;
+                                admindata.data = "successfully logged in";
+                                admindata.token = token;
+                                admindata.admin_id = rows[0].ID;
+                                admindata.username = rows[0].USERNAME;
+                                admindata.name = rows[0].NAME;
+                                admindata.phone_number = rows[0].PHONE_NUMBER;
+                                admindata.email_id = rows[0].EMAIL_ID;
+                                res.json(admindata);
+                            }
+                        });
+                    }
+                    else {
+                        res.json({status: 403, data: 'invalid username or password'});
+                    }
+                }
+            });
+        }
+        else {
+            res.json({status: 403, data: 'Please enter password'});
+        }
+    }
+    else {
+        res.json({status: 403, data: 'Please enter username'});
+    }
+});
+
+app.get('/admin/users', function (req, res) {
+    var token = req.query.token;
+    console.log(token);
+    var checksequenceQuery = "SELECT * from admininfo where TOKEN = '" + token + "'";
+    con.query(checksequenceQuery, function (err, seq) {
+        if (err) {
+        }
+        else {
+            if (seq.length > 0) {
+                var fetchUsersQuery = "SELECT * from users where contact_isgroup = 0";
+                con.query(fetchUsersQuery, function (err, rows) {
+                    if (err) {
+                        console.log(err);
+                    }
+                    else {
+                        var jsonMainobject = {};
+                        jsonMainobject.status = 200;
+                        var membersList = [];
+                        async.forEachSeries(rows, function (member, callback) {
+                            var jsonObject = {};
+
+                            jsonObject.user_id = member.userid;
+                            jsonObject.pin_no = member.pin_no;
+                            jsonObject.phone_no = member.phone_no;
+                            jsonObject.contact_displayname = member.contact_displayname;
+                            jsonObject.contact_gender = member.contact_gender;
+                            jsonObject.contact_status = member.contact_status;
+                            jsonObject.contact_profilepic = member.contact_profilepic;
+                            jsonObject.contact_profilepicthumb = member.contact_profilepicthumb;
+                            jsonObject.contact_isnovisible = member.contact_isnovisible;
+                            jsonObject.contact_privacy_pic = member.contact_privacy_pic;
+                            membersList.push(jsonObject);
+                            callback();
+                        }, function () {
+                            jsonMainobject.membersList = membersList;
+                            res.json(jsonMainobject);
+                        });
+                    }
+                });
+            }
+            else {
+                res.json({status: 403, data: 'Login Expired'});
+            }
+        }
+    });
+
+});
+
+app.get('/admin/userinfo', function (req, res) {
+    var token = req.query.token;
+    var userId = req.query.user_id;
+    var sequenceCheckQuery = "SELECT * from admininfo where TOKEN = '" + token + "'";
+    con.query(sequenceCheckQuery, function (err, results) {
+        if (err) {
+            res.json({status: 403, data: 'erorr occured'});
+        } else {
+            if (results.length > 0) {
+                // sequence true
+                var groupinfoQuery = "SELECT * FROM groupusers,users WHERE group_id=userid and user_id = " + userId;
+                con.query(groupinfoQuery, function (err, userinfo) {
+                    if (err) {
+                        res.json({status: 403, data: 'erorr occured'});
+                    }
+                    else {
+                        var mainObject = {};
+                        var groupList = [];
+                        mainObject.status = 200;
+                        mainObject.data = "successfully fetched the data";
+                        async.forEachSeries(userinfo, function (member, callback) {
+                            console.log(member.created_time);
+                            var jsonObject = {};
+                            jsonObject.group_id = member.group_id;
+                            jsonObject.user_id = member.user_id;
+                            jsonObject.group_pin = member.pin_no;
+                            jsonObject.is_moderator = member.is_moderator;
+                            jsonObject.contact_displayname = member.contact_displayname;
+                            jsonObject.contact_status = member.contact_status;
+                            jsonObject.contact_profilepic = member.contact_profilepic;
+                            jsonObject.contact_profilepicthumb = member.contact_profilepicthumb;
+                            jsonObject.created_time = member.created_time;
+                            jsonObject.created_by = member.created_by;
+
+                            groupList.push(jsonObject);
+                            callback();
+                        }, function () {
+                            mainObject.groupList = groupList;
+                            res.json(mainObject);
+                        });
+                    }
+                });
+            }
+            else {
+                res.json({status: 403, data: 'Login Expired'});
+            }
+        }
+    });
+});
+
+app.get('/admin/groups', function (req, res) {
+    var token = req.query.token;
+    var sequenceCheckQuery = "SELECT * from admininfo where TOKEN = '" + token + "'";
+    con.query(sequenceCheckQuery, function (err, results) {
+        if (err) {
+            res.json({status: 403, data: 'erorr occured'});
+        } else {
+            if (results.length > 0) {
+                // sequence true
+                var groupinfoQuery = "SELECT * from users where contact_isgroup = 1";
+                con.query(groupinfoQuery, function (err, groupinfo) {
+                    if (err) {
+                        res.json({status: 403, data: 'erorr occured'});
+                    }
+                    else {
+                        var mainObject = {};
+                        var groupList = [];
+                        mainObject.status = 200;
+                        mainObject.data = "successfully fetched the data";
+                        async.forEachSeries(groupinfo, function (group, callback) {
+                            var jsonObject = {};
+                            jsonObject.group_id = group.userid;
+                            jsonObject.group_pin = group.pin_no;
+                            jsonObject.group_name = group.contact_displayname;
+                            jsonObject.contact_profilepic = group.contact_profilepic;
+                            jsonObject.contact_profilepicthumb = group.contact_profilepicthumb;
+                            jsonObject.contact_isnovisible = group.contact_isnovisible;
+                            jsonObject.contact_privacy_pic = group.contact_privacy_pic;
+                            jsonObject.created_time = group.created_time;
+                            jsonObject.created_by = group.created_by;
+                            groupList.push(jsonObject);
+                            callback();
+                        }, function () {
+                            mainObject.groupList = groupList;
+                            res.json(mainObject);
+                        });
+                    }
+                });
+            }
+            else {
+                res.json({status: 403, data: 'Login Expired'});
+            }
+        }
+    });
+});
+
+app.get('/admin/groupinfo', function (req, res) {
+    var token = req.query.token;
+    var groupId = req.query.group_id;
+    var sequenceCheckQuery = "SELECT * from admininfo where TOKEN = '" + token + "'";
+    con.query(sequenceCheckQuery, function (err, results) {
+        if (err) {
+            res.json({status: 403, data: 'erorr occured'});
+        } else {
+            if (results.length > 0) {
+                // sequence true
+                var groupinfoQuery = "SELECT * from users, groupusers where groupusers.user_id = users.userid and groupusers.group_id = " + groupId;
+                con.query(groupinfoQuery, function (err, groupinfo) {
+                    if (err) {
+                        res.json({status: 403, data: 'erorr occured'});
+                    }
+                    else {
+                        var mainObject = {};
+                        var memberList = [];
+                        mainObject.status = 200;
+                        mainObject.data = "successfully fetched the data";
+                        async.forEachSeries(groupinfo, function (member, callback) {
+                            var jsonObject = {};
+                            jsonObject.user_id = member.userid;
+                            jsonObject.phone_no = member.phone_no;
+                            jsonObject.pin_no = member.pin_no;
+                            jsonObject.contact_displayname = member.contact_displayname;
+                            jsonObject.contact_status = member.contact_status;
+                            jsonObject.contact_gender = member.contact_gender;
+                            jsonObject.contact_profilepic = member.contact_profilepic;
+                            jsonObject.contact_profilepicthumb = member.contact_profilepicthumb;
+                            jsonObject.contact_isnovisible = member.contact_isnovisible;
+                            jsonObject.contact_privacy_pic = member.contact_privacy_pic;
+                            jsonObject.is_moderator = member.is_moderator;
+                            memberList.push(jsonObject);
+                            callback();
+                        }, function () {
+                            mainObject.memberList = memberList;
+                            res.json(mainObject);
+                        });
+                    }
+                });
+            }
+            else {
+                res.json({status: 403, data: 'Login Expired'});
+            }
+        }
+    });
+});
+
 
 app.listen(3001, function () {
     console.log("Uploader is running on 3001");
