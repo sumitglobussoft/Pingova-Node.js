@@ -43,24 +43,24 @@ process.on('SIGINT', function () {
 });
 
 
-var pool = mysql.createPool({
-    connectionLimit: 100, //important
-    host: 'localhost',
-    user: 'pingova',
-    password: 'pNUNsGV8KRhPpEfM',
-    database: 'pingova',
-    debug: false
-});
-
-
 //var pool = mysql.createPool({
 //    connectionLimit: 100, //important
 //    host: 'localhost',
-//    user: 'root',
-//    password: 'root',
+//    user: 'pingova',
+//    password: 'pNUNsGV8KRhPpEfM',
 //    database: 'pingova',
 //    debug: false
 //});
+
+
+var pool = mysql.createPool({
+    connectionLimit: 100, //important
+    host: 'localhost',
+    user: 'root',
+    password: 'root',
+    database: 'pingova',
+    debug: false
+});
 
 //var connection = mysql.createConnection({
 //		host : "localhost",
@@ -3589,7 +3589,7 @@ io.sockets.on('connection', function (client) {
                     } else {
                         myarr = '{"updated_status":"0"}';
                     }
-                    io.sockets.socket(client.id).emit("updateContactDisplaynameResponse", JSON.str);
+                    io.sockets.socket(client.id).emit("updateContactDisplaynameResponse", myarr);
                 }
             });
         });
@@ -3876,7 +3876,7 @@ io.sockets.on('connection', function (client) {
         var userOrGroupIds = jsonGroupMsg.userto_id; // list of ids will be sent
         var userIdFrom = jsonGroupMsg.userfrom_id;
         var msgData = jsonGroupMsg.msg_data;
-      //  var msgType = jsonGroupMsg.msg_type;
+        var msgType = jsonGroupMsg.msg_type;
         var type = 19;
       //  var msgLocalId = jsonGroupMsg.msg_local_id;
         var allUserIds = [];
@@ -3895,7 +3895,7 @@ io.sockets.on('connection', function (client) {
                 type: 20,
                 userId_to: userIdFrom,
                 msg_serverid: 11,
-                msg_type: 2,
+                msg_type: msgType,
 //                msg_localid: msgLocalId,
                 msg_data: msgData,
                 timestamp: receivedTime
@@ -3958,10 +3958,10 @@ io.sockets.on('connection', function (client) {
 
                             var jsonData = {};
 //                            jsonData.msg_local_id = msgLocalId;
-                            jsonData.msg_type = 2;
+                            jsonData.msg_type = msgType;
                             jsonData.msg_data = msgData;
-                            jsonData.userfrom_id = userIdFrom;
-                            jsonData.userto_id = item;
+                            jsonData.userid_from = userIdFrom;
+                            jsonData.userid_to = item;
                             jsonData.timestamp = receivedTime;
                             jsonData.type = type;
                             //send to each  
@@ -3985,7 +3985,7 @@ io.sockets.on('connection', function (client) {
         console.log("test::::::::::::::::::::::::::::" + test);
         var jsonMsg = JSON.parse(test);
         console.log("jsonMsg::::::::::::::::::::::::::::" + jsonMsg);
-        var user = jsonMsg.userto_id;
+        var user = jsonMsg.userid_to;
         UserSchema.find({
             'userId': user
         }, function (err, doc) {
@@ -4006,8 +4006,8 @@ io.sockets.on('connection', function (client) {
 
                 var newqueuemessage = new MessagequeueSchema({
                     type: 19,
-                    userId_to: jsonMsg.userto_id,
-                    userId_from: jsonMsg.userfrom_id,
+                    userId_to: jsonMsg.userid_to,
+                    userId_from: jsonMsg.userid_from,
                     msg_type: jsonMsg.msg_type,
                     msg_data: messagedata,
                     msg_status: 1,

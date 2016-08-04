@@ -28,5 +28,19 @@ con.connect(function(err){
   console.log('Connection established');
 });
 
+// var pool = mysql.createPool({
+//    connectionLimit: 100, //important
+//    host: 'localhost',
+//    user: 'root',
+//    password: 'root',
+//    database: 'pingova',
+//    debug: false
+//});
+//
+//var connection;
+//pool.getConnection(function (err, connection) {
+//    this.connection=connection;
+//});
+
 module.exports = con;
 

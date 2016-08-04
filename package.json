@@ -11,9 +11,11 @@
     "binary": "^0.3.0",
     "blueimp-file-upload-expressjs": "arvindr21/blueimp-file-upload-expressjs",
     "body-parser": "^1.14.2",
+    "cors": "^2.7.1",
     "express": "3.4.8",
     "mathjs": "^3.0.0",
     "multer": "^1.0.6",
+    "rand-token": "^0.2.1",
     "thumbnails-webvtt": "0.0.4",
     "twilio": "^2.9.0",
     "validator": "^4.5.1"

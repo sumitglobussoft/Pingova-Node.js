@@ -5,6 +5,8 @@ var bodyParser = require('body-parser');
 var math = require('mathjs');
 var app = express();
 var async = require('async');
+var cors = require('cors');
+app.use(cors());
 app.use(bodyParser.json());
 var randtoken = require('rand-token');
 //app.use(express.urlencoded());
@@ -560,7 +562,7 @@ app.post('/generateVerificationCode', function (req, res) {
             console.log(rows);
             client.messages.create({
                 to: "+918818896667",
-                from: "+12014313047",
+                from: "+12566001177",
                 body: "Your Pingova verification code is: " + verificationcode
             }, function (err, message) {
                 if (err) {
@@ -851,6 +853,91 @@ app.get('/admin/groupinfo', function (req, res) {
             else {
                 res.json({status: 403, data: 'Login Expired'});
             }
+        }
+    });
+});
+
+
+//to change Admin password
+app.post('/admin/changepassword', function (req, res) {
+
+    var token = req.body.token;
+    var oldpassword = req.body.old_password;
+    var newPassword = req.body.new_password;
+    var sequenceCheckQuery = "SELECT * from admininfo where TOKEN = '" + token + "'";
+    console.log(sequenceCheckQuery);
+    con.query(sequenceCheckQuery, function (err, results) {
+        if (err) {
+            res.json({status: 403, data: 'erorr occured'});
+        } else {
+            console.log(results.length);
+            if (results.length > 0) {
+                var getalladvertisesQuery = "SELECT * from admininfo where USERNAME = 'admin' and PASSWORD='" + oldpassword + "'";
+                con.query(getalladvertisesQuery, function (err, rows) {
+                    if (err) {
+                        res.json({status: 403, data: 'erorr occured'});
+                    } else {
+                        console.log(rows.length);
+                        if (rows.length > 0) {
+                            var getalladvertisesQuery = "UPDATE admininfo SET PASSWORD = '" + newPassword + "' where PASSWORD='" + oldpassword + "'";
+                            console.log(getalladvertisesQuery);
+                            con.query(getalladvertisesQuery, function (err, rows2) {
+                                if (err) {
+                                    res.json({status: 403, data: 'erorr occured'});
+                                } else {
+                                    console.log(rows2);
+                                    if (rows2.changedRows === 1) {
+                                        res.json({status: 200, data: 'password updated'});
+                                    }
+                                }
+                            });
+                        }
+                        else {
+                            res.json({status: 403, data: 'invalid old password'});
+                        }
+                    }
+                });
+            }
+        }
+    });
+});
+
+
+//fetching data of visible contacts to update with recent data
+app.post('/updateUserData', function (req, res) {
+
+    var members_list = [];
+    var arrayMembers = req.body.array_members;
+    console.log(arrayMembers);
+    
+    arrayMembers = arrayMembers.replace('[','').replace(']','');
+
+
+    var strQuery = "SELECT * FROM users WHERE userid in (" + arrayMembers + ")";
+    console.log(strQuery);
+    con.query(strQuery, function (err, rows) {
+        if (err) {
+            res.json({status: 403, data: 'erorr occured'});
+            console.log(err);
+//                    throw err;
+        } else {
+          
+            async.forEachSeries(rows, function (member, callback)
+            {
+                var members_data = {};
+                members_data.user_id = member.userid;
+                members_data.pin_no = member.pin_no;
+                members_data.contact_displayname = member.contact_displayname;
+                members_data.contact_status = member.contact_status;
+                members_data.contact_gender = member.contact_gender;
+                members_data.contact_profilepic = member.contact_profilepic;
+                members_data.contact_profilepicthumb = member.contact_profilepicthumb;
+
+                members_list.push(members_data);
+                callback();
+            }, function () {
+                res.json({status: 200, data: members_list});
+            });
         }
     });
 });
