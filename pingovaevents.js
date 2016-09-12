@@ -43,14 +43,7 @@ process.on('SIGINT', function () {
 });
 
 
-//var pool = mysql.createPool({
-//    connectionLimit: 100, //important
-//    host: 'localhost',
-//    user: 'pingova',
-//    password: 'pNUNsGV8KRhPpEfM',
-//    database: 'pingova',
-//    debug: false
-//});
+
 
 
 var pool = mysql.createPool({
@@ -802,13 +795,13 @@ io.sockets.on('connection', function (client) {
                                                 else if (item.type === 19) { //pingToPeepNotification
                                                     messagearray.message.push({
                                                         "userid_to": item.userId_to,
-                                                         "userid_from": item.userId_from,
+                                                        "userid_from": item.userId_from,
                                                         "type": item.type,
                                                         "timestamp": item.timestamp,
                                                         "msg_data": item.msg_data,
 //                                                         "msg_local_id": item.msg_localid,
-                                                         "msg_type": item.msg_type,
-                                                         "msg_server_id": item.msg_serverid
+                                                        "msg_type": item.msg_type,
+                                                        "msg_server_id": item.msg_serverid
                                                     });
                                                 }
                                                 if (item.type === 20)//pingToPeepAck
@@ -820,6 +813,52 @@ io.sockets.on('connection', function (client) {
                                                         "msg_server_id": item.msg_serverid,
                                                         "timestamp": item.timestamp,
                                                         "msg_status": "1"
+                                                    });
+                                                }
+                                                if ((item.type === 21) || (item.type === 22))//update group name
+                                                {
+                                                    messagearray.message.push({
+                                                        "type": item.type,
+                                                        "userid_to": item.userId_to,
+                                                        "group_id": item.userId_from,
+                                                        "user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "updated_status": 1,
+                                                        "group_name": item.msg_data
+                                                    });
+                                                }
+                                                if ((item.type === 23) || (item.type === 24))//update group name
+                                                {
+                                                    var jsonImageData = JSON.parse(item.msg_data);
+                                                    messagearray.message.push({
+                                                        "type": item.type,
+                                                        "userid_to": item.userId_to,
+                                                        "group_id": item.userId_from,
+                                                        "user_id": item.send_by,
+                                                        "timestamp": item.timestamp,
+                                                        "updated_status": 1,
+                                                        "group_profilepic": jsonImageData.group_profilepic,
+                                                        "group_profilepicthumb": jsonImageData.group_profilepicthumb
+                                                    });
+                                                }
+                                                else if (item.type === 25) {//friendRequestAcceptedResponse
+
+                                                    messagearray.message.push({
+                                                        "type": item.type,
+                                                        "userid_to": item.userId_to,
+                                                        "userid_from": item.userId_from,
+                                                        "msg_data": item.msg_data,
+                                                        "timestamp": item.timestamp
+                                                    });
+                                                }
+                                                else if (item.type === 26) {//friendRequestAccepted
+
+                                                    messagearray.message.push({
+                                                        "type": item.type,
+                                                        "userid_to": item.userfrom_id,
+                                                        "userid_from": item.userId_from,
+                                                        "msg_data": item.msg_data,
+                                                        "timestamp": item.timestamp
                                                     });
                                                 }
                                             }
@@ -991,8 +1030,8 @@ io.sockets.on('connection', function (client) {
             var strQuery = "SELECT * FROM users WHERE contact_isgroup = 0 and pin_no like '%" + pin + "%' and  userid not in ( SELECT `user_id` FROM `blocklist` WHERE `blocked_user_id` = " + userId + " UNION  SELECT `blocked_user_id` FROM `blocklist` WHERE `user_id` =" + userId + " ) and userid!=" + userId + "  UNION SELECT * FROM users WHERE contact_isgroup = 1 and contact_isnovisible = 1 and  pin_no like '%" + pin + "%'";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
-                connection.release();
                 if (err) {
+                    connection.release();
                     console.log(err);
                     io.sockets.socket(client.id).emit("searchUserPinResponse", members_list);
                 }
@@ -1004,43 +1043,80 @@ io.sockets.on('connection', function (client) {
                         {
                             var members_data = {};
                             var friends = {};
-                            friendRequestSchema.find({$or: [{
-                                        'userId': member.userid,
-                                        'friendUserId': userId
-                                    }, {
-                                        'userId': userId,
-                                        'friendUserId': member.userid
-                                    }]}, function (err, doc) {
-                                if (err)
-                                {
+                            if (member.contact_isgroup === 0) {
+                                friendRequestSchema.find({$or: [{
+                                            'userId': member.userid,
+                                            'friendUserId': userId
+                                        }, {
+                                            'userId': userId,
+                                            'friendUserId': member.userid
+                                        }]}, function (err, doc) {
+                                    if (err)
+                                    {
 
-                                } else {
-                                    if (doc.length > 0) {
-                                        friends.userId = doc[0].userId;
-                                        friends.friendUserId = doc[0].friendUserId;
-                                        friends.status = doc[0].status;
+                                    } else {
+                                        if (doc.length > 0) {
+                                            friends.userId = doc[0].userId;// request sender
+                                            friends.friendUserId = doc[0].friendUserId; // request receiver
+                                            friends.status = doc[0].status;
+                                        }
+
+                                        members_data.user_id = member.userid;
+                                        members_data.pin_no = member.pin_no;
+                                        members_data.contact_displayname = member.contact_displayname;
+                                        members_data.contact_status = member.contact_status;
+                                        members_data.contact_gender = member.contact_gender;
+                                        members_data.contact_profilepic = member.contact_profilepic;
+                                        members_data.contact_profilepicthumb = member.contact_profilepicthumb;
+                                        members_data.contact_isnovisible = member.contact_isnovisible;
+                                        members_data.contact_isgroup = member.contact_isgroup;
+                                        members_data.contact_privacy_pic = member.contact_privacy_pic;
+                                        members_data.contact_sequence = member.contact_sequence;
+                                        members_data.created_time = member.created_time;
+                                        members_data.created_by = member.created_by;
+                                        members_data.friends = friends;
+                                        members_list.push(members_data);
+                                        callback();
+                                    }
+                                });
+                            } else if (member.contact_isgroup === 1) {
+                                var selectGroupMemeberTableQuery = "SELECT * FROM groupusers WHERE group_id = " + member.userid + " and user_id =" + userId;
+                                connection.query(selectGroupMemeberTableQuery, function (err, groupinfo) {
+
+                                    if (err) {
+
+                                    } else {
+                                        if (groupinfo.length > 0) {
+                                            friends.userId = userId;
+                                            friends.friendUserId = member.userid; //this will always be group id
+                                            friends.status = groupinfo[0].request_status;
+                                        }
+                                        members_data.user_id = member.userid;
+                                        members_data.pin_no = member.pin_no;
+                                        members_data.contact_displayname = member.contact_displayname;
+                                        members_data.contact_status = member.contact_status;
+                                        members_data.contact_gender = member.contact_gender;
+                                        members_data.contact_profilepic = member.contact_profilepic;
+                                        members_data.contact_profilepicthumb = member.contact_profilepicthumb;
+                                        members_data.contact_isnovisible = member.contact_isnovisible;
+                                        members_data.contact_isgroup = member.contact_isgroup;
+                                        members_data.contact_privacy_pic = member.contact_privacy_pic;
+                                        members_data.contact_sequence = member.contact_sequence;
+                                        members_data.created_time = member.created_time;
+                                        members_data.created_by = member.created_by;
+                                        members_data.friends = friends;
+                                        members_list.push(members_data);
+                                        callback();
+
                                     }
 
-                                    members_data.user_id = member.userid;
-                                    members_data.pin_no = member.pin_no;
-                                    members_data.contact_displayname = member.contact_displayname;
-                                    members_data.contact_status = member.contact_status;
-                                    members_data.contact_gender = member.contact_gender;
-                                    members_data.contact_profilepic = member.contact_profilepic;
-                                    members_data.contact_profilepicthumb = member.contact_profilepicthumb;
-                                    members_data.contact_isnovisible = member.contact_isnovisible;
-                                    members_data.contact_isgroup = member.contact_isgroup;
-                                    members_data.contact_privacy_pic = member.contact_privacy_pic;
-                                    members_data.contact_sequence = member.contact_sequence;
-                                    members_data.created_time = member.created_time;
-                                    members_data.created_by = member.created_by;
-                                    members_data.friends = friends;
-                                    members_list.push(members_data);
-                                    callback();
-                                }
-                            });
+                                });
+
+
+                            }
                         }, function () {
 //                        members_Object = JSON.stringify(members_list);
+                            connection.release();
                             io.sockets.socket(client.id).emit("searchUserPinResponse", members_list);
                         });
                     }
@@ -1365,6 +1441,271 @@ io.sockets.on('connection', function (client) {
         });
     });
 
+    //cancel friend request
+    client.on("cancelFriendRequest", function (data) {
+        var receivedTime = "" + Math.floor(Date.now());
+        var jsonMsg = JSON.parse(data);
+        var userfrom_id = jsonMsg.userfrom_id; // req. sending user.
+        var userto_id = jsonMsg.userto_id; // req. receiving user.
+        var isGroup = jsonMsg.is_group; //1 incase it is group
+
+var jsonObject = {};
+        if (isGroup === '0') {
+            friendRequestSchema.find({
+                'userId': userfrom_id,
+                'friendUserId': userto_id
+            },
+            function (err, doc) {
+                if (err)
+                {
+                   
+                    jsonObject.request_status = 0;
+                    jsonObject.userfrom_id = userfrom_id;
+                    jsonObject.userto_id = userto_id;
+                    jsonObject.is_group = isGroup;
+                    var jsonString = JSON.stringify(jsonObject);
+                    io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+
+                } else {
+                    if (doc.length > 0) {
+                        if (doc[0].status === 0) {
+
+                            doc[0].remove();
+                            
+                            jsonObject.request_status = 1;
+                            jsonObject.userfrom_id = userfrom_id;
+                            jsonObject.userto_id = userto_id;
+                            jsonObject.is_group = isGroup;
+
+                            UserSchema.find({
+                                'userId': userto_id
+                            }, function (err, doc1) {
+                                if (err)
+                                {
+                                    console.log("error in getting user details");
+                                    return err;
+                                } else {
+                                    if (doc1.length > 0) {
+
+                                        var socketid = doc1[0].socketId;
+                                        var jsonString = JSON.stringify(jsonObject);
+                                        if (io.sockets.sockets[socketid] !== undefined)
+                                        {
+                                            io.sockets.socket(socketid).emit("cancelFriendRequestNotification", jsonString);
+                                        } else
+                                        {
+                                            var newqueuemessage = new MessagequeueSchema({
+                                                type: 25,
+                                                userId_to: userto_id,
+                                                userId_from: userfrom_id,
+                                                msg_data: jsonString,
+                                                timestamp: receivedTime
+                                            });
+                                            newqueuemessage.save(function (err) {
+                                                if (err) {
+                                                    return err;
+                                                } else {
+                                                    console.log("New message  added in queue !");
+                                                }
+                                            });
+                                        }
+
+                                    }
+                                    else {
+                                        
+                                        jsonObject.request_status = 0;
+                                        jsonObject.userfrom_id = userfrom_id;
+                                        jsonObject.userto_id = userto_id;
+                                        jsonObject.is_group = isGroup;
+                                        var jsonString = JSON.stringify(jsonObject);
+                                        io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                                    }
+                                }
+                            });
+                             var jsonString = JSON.stringify(jsonObject);
+                            if (io.sockets.sockets[client.id] !== undefined)
+                            {
+                                io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                            } else
+                            {
+                                var newqueuemessage = new MessagequeueSchema({
+                                    type: 26,
+                                    userId_to: userfrom_id,
+                                    userId_from: userto_id,
+                                    msg_data: jsonString,
+                                    timestamp: receivedTime
+                                });
+                                newqueuemessage.save(function (err) {
+                                    if (err) {
+                                        return err;
+                                    } else {
+                                        console.log("New message  added in queue !");
+                                    }
+                                });
+                            }
+                        } else {
+                            
+                            jsonObject.request_status = 0;
+                            jsonObject.userfrom_id = userfrom_id;
+                            jsonObject.userto_id = userto_id;
+                            jsonObject.is_group = isGroup;
+                            var jsonString = JSON.stringify(jsonObject);
+                            io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                        }
+                    }
+                    else {
+                        
+                        jsonObject.request_status = 0;
+                        jsonObject.userfrom_id = userfrom_id;
+                        jsonObject.userto_id = userto_id;
+                        jsonObject.is_group = isGroup;
+                        var jsonString = JSON.stringify(jsonObject);
+                        io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                    }
+                }
+            });
+        } else if (isGroup === '1') {
+            var selectGroupMemeberTableQuery = "SELECT * FROM groupusers WHERE group_id = " + userto_id + " and user_id =" + userfrom_id + " and request_status = 0";
+            console.log(selectGroupMemeberTableQuery);
+            pool.getConnection(function (err, connection) {
+                if (err)
+                {
+                    console.log(err);
+                    connection.release();
+                    return;
+                }
+                connection.query(selectGroupMemeberTableQuery, function (err, doc) {
+                    if (err)
+                    {
+                        
+                        jsonObject.request_status = 0;
+                        jsonObject.userfrom_id = userfrom_id;
+                        jsonObject.userto_id = userto_id;
+                        jsonObject.is_group = isGroup;
+                        var jsonString = JSON.stringify(jsonObject);
+                        io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+
+                    } else {
+                        if (doc.length > 0) {
+                            var selectGroupMemeberTableQuery = "DELETE FROM groupusers WHERE group_id = " + userto_id + " and user_id =" + userfrom_id + " and request_status = 0";
+                            console.log(selectGroupMemeberTableQuery);
+                            connection.query(selectGroupMemeberTableQuery, function (error, deleted) {
+                                if (error) {
+                                    connection.release();
+                                   
+                                    jsonObject.request_status = 0;
+                                    jsonObject.userfrom_id = userfrom_id;
+                                    jsonObject.userto_id = userto_id;
+                                    jsonObject.is_group = isGroup;
+                                    var jsonString = JSON.stringify(jsonObject);
+                                    io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                                }
+                                else {
+                                    
+                                    jsonObject.request_status = 1;
+                                    jsonObject.userfrom_id = userfrom_id;
+                                    jsonObject.userto_id = userto_id;
+                                    jsonObject.is_group = isGroup;
+                                     var jsonString = JSON.stringify(jsonObject);
+
+                                    //select moderator of the group
+                                    var selectGroupModerator = "SELECT * from groupusers where group_id = " + userto_id + " and is_moderator=1";
+                                    connection.query(selectGroupModerator, function (error, selectedModerator) {
+                                        if (error) {
+                                        }
+                                        else {
+                                            if(selectedModerator.length>0){
+                                            UserSchema.find({
+                                                'userId': selectedModerator[0].user_id
+                                            }, function (err, doc1) {
+                                                if (err)
+                                                {
+                                                    console.log("error in getting user details");
+                                                    return err;
+                                                } else {
+                                                    if (doc1.length > 0) {
+                                                        var socketid = doc1[0].socketId;
+                                                         var jsonString = JSON.stringify(jsonObject);
+                                                        if (io.sockets.sockets[socketid] !== undefined)
+                                                        {
+                                                            //jsonObject.test=3123414;
+                                                           
+                                                            io.sockets.socket(socketid).emit("cancelFriendRequestNotification", jsonString);
+                                                        } else
+                                                        {
+                                                            var newqueuemessage = new MessagequeueSchema({
+                                                                type: 25,
+                                                                userId_to: selectedModerator[0].user_id,
+                                                                userId_from: userfrom_id,
+                                                                msg_data: jsonString,
+                                                                timestamp: receivedTime
+                                                            });
+                                                            newqueuemessage.save(function (err) {
+                                                                if (err) {
+                                                                    return err;
+                                                                } else {
+                                                                    console.log("New message  added in queue !");
+                                                                }
+                                                            });
+                                                        }
+                                                    }
+                                                    else {
+                                                        
+                                                        jsonObject.request_status = 0;
+                                                        jsonObject.userfrom_id = userfrom_id;
+                                                        jsonObject.userto_id = userto_id;
+                                                        jsonObject.is_group = isGroup;
+                                                        var jsonString = JSON.stringify(jsonObject);
+                                                        io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                                                    }
+                                                }
+                                            });
+                                        }
+                                        }
+                                    });
+
+
+                                    if (io.sockets.sockets[client.id] !== undefined)
+                                    {
+                                        io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                                    } else
+                                    {
+                                        var newqueuemessage = new MessagequeueSchema({
+                                            type: 26,
+                                            userId_to: userfrom_id,
+                                            userId_from: userto_id,
+                                            msg_data: jsonString,
+                                            timestamp: receivedTime
+                                        });
+                                        newqueuemessage.save(function (err) {
+                                            if (err) {
+                                                return err;
+                                            } else {
+                                                console.log("New message  added in queue !");
+                                            }
+                                        });
+                                    }
+                                }
+                            });
+
+                        }
+                        else {
+                            
+                            jsonObject.request_status = 0;
+                            jsonObject.userfrom_id = userfrom_id;
+                            jsonObject.userto_id = userto_id;
+                            jsonObject.is_group = isGroup;
+                            var jsonString = JSON.stringify(jsonObject);
+                            io.sockets.socket(client.id).emit("cancelFriendRequestResponse", jsonString);
+                        }
+                    }
+                });
+            });
+
+        }
+
+    });
+
     //accept or reject friends request
     client.on("acceptRejectFriendRequest", function (data) {
         var receivedTime = "" + Math.floor(Date.now());
@@ -1402,8 +1743,8 @@ io.sockets.on('connection', function (client) {
                             }
                             var newqueuemessage = new MessagequeueSchema({
                                 type: 16,
-                                userId_to: userto_id,
-                                userId_from: userfrom_id,
+                                userId_to: userfrom_id,
+                                userId_from: userto_id,
                                 msg_serverid: 11,
                                 msg_data: tempfriendinfo,
                                 timestamp: receivedTime
@@ -3043,11 +3384,19 @@ io.sockets.on('connection', function (client) {
         });
     });
 
-    //updating display name
-    client.on("updateDisplayName", function (msg) {
+    //updating Group name
+    client.on("updateGroupName", function (msg) {
+        var receivedTime = Math.floor(Date.now());
         var jsonMsg = JSON.parse(msg);
-        var user = jsonMsg.user_id;
-        var displayName = jsonMsg.display_name;
+        var userId = jsonMsg.user_id;
+        var groupName = jsonMsg.group_name;
+        var groupId = jsonMsg.group_id;
+        var jsonObject = {};
+        jsonObject.user_id = userId;
+        jsonObject.group_id = groupId;
+        jsonObject.group_name = groupName;
+        jsonObject.timestamp = receivedTime;
+
         pool.getConnection(function (err, connection) {
             if (err)
             {
@@ -3055,28 +3404,101 @@ io.sockets.on('connection', function (client) {
                 connection.release();
                 return;
             }
-            var strQuery = "UPDATE users SET contact_displayname ='" + displayName + "' WHERE userid = " + user;
+            var strQuery = "SELECT * from groupusers where group_id =" + groupId + " and user_id = " + userId + " and request_status=1";
             console.log(strQuery);
             connection.query(strQuery, function (err, rows) {
-                connection.release();
                 if (err) {
-                    console.log(err);
-//                    throw err;
+                    jsonObject.updated_status = 0;
+                    var jsonString = JSON.stringify(jsonObject);
+                    io.sockets.socket(client.id).emit("updateGroupNameResponse", jsonString);
                 } else {
-                    var myarr;
-                    console.log(rows);
-                    console.log(rows.affectedRows);
-                    if (rows.affectedRows > 0) {
-                        myarr = '{"updated_status":"1"}';
-                    } else {
-                        myarr = '{"updated_status":"0"}';
+                    if (rows.length > 0) {
+                        var updateGroupNameQuery = "UPDATE users SET contact_displayname ='" + groupName + "' WHERE userid = " + groupId;
+                        connection.query(updateGroupNameQuery, function (err, updatedadata) {
+                            if (err) {
+                                jsonObject.updated_status = 0;
+                                var jsonString = JSON.stringify(jsonObject);
+                                io.sockets.socket(client.id).emit("updateGroupNameResponse", jsonString);
+                            } else {
+                                if (updatedadata.affectedRows > 0) {
+                                    var selectGroupMembersQuery = "SELECT * from groupusers where group_id =" + groupId + " and request_status=1";
+                                    connection.query(selectGroupMembersQuery, function (err, membersData) {
+                                        if (err) {
+                                            jsonObject.updated_status = 0;
+                                            var jsonString = JSON.stringify(jsonObject);
+                                            io.sockets.socket(client.id).emit("updateGroupNameResponse", jsonString);
+                                        } else {
+                                            async.forEachSeries(membersData, function (membersDataeach, callback_1) {
+                                                var useridTo = membersDataeach.user_id;
+                                                var type = 21;
+                                                var eventName = "updateGroupNameNotification";
+                                                console.log(useridTo + "====" + userId);
+                                                if (useridTo + "" === userId) {
+                                                    console.log("inside");
+                                                    type = 22;
+                                                    eventName = "updateGroupNameResponse";
+                                                }
+                                                UserSchema.find({
+                                                    'userId': useridTo
+                                                }, function (err, doc) {
+                                                    if (err)
+                                                    {
+                                                        console.log("error in getting user details");
+                                                    } else {
+                                                        if (doc.length > 0) {
+                                                            var socketid = doc[0].socketId;
+                                                            console.log("socket id of opponent " + socketid);
+
+                                                            if (io.sockets.sockets[socketid] !== undefined)
+                                                            {//user connected to node server
+                                                                jsonObject.updated_status = 1;
+                                                                var jsonString = JSON.stringify(jsonObject);
+                                                                console.log("fired event");
+                                                                io.sockets.socket(socketid).emit(eventName, jsonString);
+                                                            } else//When user is not connected to node server
+                                                            {
+                                                                var newqueuemessage = new MessagequeueSchema({
+                                                                    type: type,
+                                                                    userId_to: useridTo,
+                                                                    userId_from: groupId,
+                                                                    send_by: userId,
+                                                                    timestamp: receivedTime,
+                                                                    msg_data: groupName
+                                                                });
+                                                                newqueuemessage.save(function (err) {
+                                                                    if (err) {
+                                                                        return err;
+                                                                    } else {
+                                                                        console.log("New message  added in queue !");
+                                                                    }
+                                                                });
+                                                            }
+
+                                                        }
+                                                    }
+                                                });
+                                                callback_1();
+                                            }, function () {
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    jsonObject.updated_status = 0;
+                                    var jsonString = JSON.stringify(jsonObject);
+                                    io.sockets.socket(client.id).emit("updateGroupNameResponse", jsonString);
+                                }
+                            }
+                        });
                     }
-                    io.sockets.socket(client.id).emit("updateDisplayNameResponse", myarr);
+                    else {
+                        jsonObject.updated_status = 0;
+                        var jsonString = JSON.stringify(jsonObject);
+                        io.sockets.socket(client.id).emit("updateGroupNameResponse", jsonString);
+                    }
                 }
             });
         });
     });
-
     //checks newly registered user
     client.on("checkUserData", function (msg) {
         var jsonMsg = JSON.parse(msg);
@@ -3878,7 +4300,7 @@ io.sockets.on('connection', function (client) {
         var msgData = jsonGroupMsg.msg_data;
         var msgType = jsonGroupMsg.msg_type;
         var type = 19;
-      //  var msgLocalId = jsonGroupMsg.msg_local_id;
+        //  var msgLocalId = jsonGroupMsg.msg_local_id;
         var allUserIds = [];
 
         var myarr = '{"status":"1","userid_to":"' + userOrGroupIds + '","timestamp":"' + receivedTime + '"}';
@@ -4034,4 +4456,172 @@ io.sockets.on('connection', function (client) {
             }
         });
     };
+
+    //updating Group Icon
+    client.on("updateGroupIcon", function (msg) {
+        var receivedTime = Math.floor(Date.now());
+        var jsonMsg = JSON.parse(msg);
+        var userId = jsonMsg.user_id;
+        var groupProfilepic = jsonMsg.group_profilepic;
+        var groupProfilepicthumb = jsonMsg.group_profilepicthumb;
+        var groupId = jsonMsg.group_id;
+        var jsonObject = {};
+        jsonObject.user_id = userId;
+        jsonObject.group_id = groupId;
+        jsonObject.group_profilepic = groupProfilepic;
+        jsonObject.group_profilepicthumb = groupProfilepicthumb;
+        jsonObject.timestamp = receivedTime;
+
+        pool.getConnection(function (err, connection) {
+            if (err)
+            {
+                console.log(err);
+                connection.release();
+                return;
+            }
+            var strQuery = "SELECT * from groupusers where group_id =" + groupId + " and user_id = " + userId + " and request_status=1";
+            console.log(strQuery);
+            connection.query(strQuery, function (err, rows) {
+                if (err) {
+                    jsonObject.updated_status = 0;
+                    var jsonString = JSON.stringify(jsonObject);
+                    io.sockets.socket(client.id).emit("updateGroupIconResponse", jsonString);
+                } else {
+                    if (rows.length > 0) {
+                        var selectGroupMembersQuery = "SELECT * from groupusers where group_id =" + groupId + " and request_status=1";
+                        connection.query(selectGroupMembersQuery, function (err, membersData) {
+                            if (err) {
+                                jsonObject.updated_status = 0;
+                                var jsonString = JSON.stringify(jsonObject);
+                                io.sockets.socket(client.id).emit("updateGroupIconResponse", jsonString);
+                            } else {
+                                async.forEachSeries(membersData, function (membersDataeach, callback_1) {
+                                    var useridTo = membersDataeach.user_id;
+                                    var type = 23;
+                                    var eventName = "updateGroupIconNotification";
+                                    console.log(useridTo + "====" + userId);
+                                    if (useridTo + "" === userId) {
+                                        console.log("inside");
+                                        type = 24;
+                                        eventName = "updateGroupIconResponse";
+                                    }
+                                    UserSchema.find({
+                                        'userId': useridTo
+                                    }, function (err, doc) {
+                                        if (err)
+                                        {
+                                            console.log("error in getting user details");
+                                        } else {
+                                            if (doc.length > 0) {
+                                                var socketid = doc[0].socketId;
+                                                console.log("socket id of opponent " + socketid);
+
+                                                if (io.sockets.sockets[socketid] !== undefined)
+                                                {//user connected to node server
+                                                    jsonObject.updated_status = 1;
+                                                    var jsonString = JSON.stringify(jsonObject);
+                                                    console.log("fired event");
+                                                    io.sockets.socket(socketid).emit(eventName, jsonString);
+                                                } else//When user is not connected to node server
+                                                {
+                                                    var iconData = {};
+                                                    iconData.group_profilepic = groupProfilepic;
+                                                    iconData.group_profilepicthumb = groupProfilepicthumb;
+                                                    var newqueuemessage = new MessagequeueSchema({
+                                                        type: type,
+                                                        userId_to: useridTo,
+                                                        userId_from: groupId,
+                                                        send_by: userId,
+                                                        timestamp: receivedTime,
+                                                        msg_data: JSON.stringify(iconData)
+                                                    });
+                                                    newqueuemessage.save(function (err) {
+                                                        if (err) {
+                                                            return err;
+                                                        } else {
+                                                            console.log("New message  added in queue !");
+                                                        }
+                                                    });
+                                                }
+                                            }
+                                        }
+                                    });
+                                    callback_1();
+                                }, function () {
+                                });
+                            }
+                        });
+                    }
+                    else {
+                        jsonObject.updated_status = 0;
+                        var jsonString = JSON.stringify(jsonObject);
+                        io.sockets.socket(client.id).emit("updateGroupIconResponse", jsonString);
+                    }
+                }
+            });
+        });
+    });
+
+    //updating visibility of status
+    client.on("updateGroupVisibility", function (msg) {
+        var jsonMsg = JSON.parse(msg);
+        var userId = jsonMsg.user_id;
+        var groupId = jsonMsg.group_id;
+        var visibilityStatus = jsonMsg.status; //0 not visible  ::: 1 visible
+        if ((visibilityStatus === '0') || (visibilityStatus === '1')) {
+            pool.getConnection(function (err, connection) {
+                if (err)
+                {
+                    console.log(err);
+                    connection.release();
+                    return;
+                }
+
+                var strQuery = "SELECT * from groupusers where group_id =" + groupId + " and user_id = " + userId + " and request_status=1 and is_moderator=1";
+                console.log(strQuery);
+                connection.query(strQuery, function (err, rows) {
+                    if (err) {
+                        console.log(err);
+                        var myarr;
+                        myarr = '{"updated_visibility":"0"}';
+                        io.sockets.socket(client.id).emit("updateGroupVisibilityResponse", myarr);
+                    } else {
+                        if (rows.length > 0) {
+
+                            var strQuery = "UPDATE users SET contact_isnovisible  =" + visibilityStatus + " WHERE userid = " + groupId;
+                            console.log(strQuery);
+                            connection.query(strQuery, function (err, rows) {
+                                connection.release();
+                                if (err) {
+                                    console.log(err);
+                                    var myarr;
+                                    myarr = '{"updated_visibility":"0"}';
+                                    io.sockets.socket(client.id).emit("updateGroupVisibilityResponse", myarr);
+                                } else {
+                                    var myarr;
+                                    console.log(rows);
+                                    console.log(rows.affectedRows);
+                                    if (rows.affectedRows > 0) {
+                                        myarr = '{"updated_visibility":"1"}';
+                                    } else {
+                                        myarr = '{"updated_visibility":"0"}';
+                                    }
+                                    io.sockets.socket(client.id).emit("updateGroupVisibilityResponse", myarr);
+                                }
+                            });
+                        }
+                        else {
+                            var myarr;
+                            myarr = '{"updated_visibility":"0"}';
+                            io.sockets.socket(client.id).emit("updateGroupVisibilityResponse", myarr);
+                        }
+                    }
+                });
+            });
+        } else {
+            var myarr;
+            myarr = '{"updated_visibility":"0"}';
+            io.sockets.socket(client.id).emit("updateGroupVisibilityResponse", myarr);
+        }
+    });
 });
